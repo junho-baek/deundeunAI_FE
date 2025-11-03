@@ -1,9 +1,9 @@
 import { Button } from "~/common/components/ui/button";
-import { Link, type MetaFunction } from "react-router";
+import { Link, type MetaFunction, useNavigate } from "react-router";
 
 import { Typography } from "../components/typography";
 import { Input } from "../components/ui/input";
-import { Textarea } from "../components/ui/textarea";
+import ChatForm from "~/common/components/chat-form";
 import * as React from "react";
 import {
   Search as SearchIcon,
@@ -14,7 +14,7 @@ import {
   ImageUp,
   ChevronDown,
 } from "lucide-react";
-
+import { Form } from "react-router";
 export const meta: MetaFunction = () => {
   return [
     { title: "든든AI - 시니어도 쉽게 제작하는 수익형 컨텐츠" },
@@ -23,6 +23,7 @@ export const meta: MetaFunction = () => {
 };
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const [selectedTool, setSelectedTool] = React.useState<
     "search" | "sparkles" | "lightbulb"
   >("search");
@@ -38,21 +39,12 @@ export default function HomePage() {
     setValue(e.target.value);
   };
 
-  const handleSend = () => {
-    if (!value.trim()) return;
-    setDisabled(true);
-    // Placeholder: simulate send
-    setTimeout(() => {
-      setValue("");
-      setDisabled(false);
-    }, 400);
-  };
+  const handleSend = () => {};
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      handleSend();
-    }
+  const handleKeyDown = (_e: React.KeyboardEvent<HTMLTextAreaElement>) => {};
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    navigate("/my/dashboard/project/create");
   };
   return (
     <div className="px-20 space-y-40 min-w-[400px]">
@@ -63,55 +55,11 @@ export default function HomePage() {
         </Typography>
 
         <h2 className="text-center text-5xl md:text-7xl font-extrabold tracking-tight text-balance bg-linear-to-r from-blue-400 via-cyan-300 via-40% to-fuchsia-400 bg-clip-text text-transparent">
-          간단한 아이디어를 수익형 쇼츠로 바꿔보세요
+          아이디어를 수익형 쇼츠로 바꿔보세요
         </h2>
-
-        <div className="relative w-full max-w-5xl mt-6 border border-white/10 rounded-2xl">
-          <Textarea
-            id="message"
-            placeholder="이곳에 아이디어를 입력해주세요. 당신의 아이디어가 당신만의 수익형 컨텐츠가 될거에요"
-            className="w-full rounded-2xl border border-white/10 bg-white/5 dark:bg-white/5 shadow-lg backdrop-blur pl-14 pr-14 py-6 resize-none min-h-[180px]"
-            rows={9}
-            value={value}
-            onChange={onChange}
-            onKeyDown={handleKeyDown}
-            disabled={disabled}
-          />
-
-          <div className="absolute left-4 bottom-4 flex gap-2">
-            <Button
-              type="button"
-              variant={selectedTool === "search" ? "default" : "outline"}
-              size="sm"
-              aria-label="검색 모드"
-              onClick={() => onToolChange("search")}
-            >
-              <ImageUp className="h-4 w-4" />
-              이미지 업로드
-            </Button>
-          </div>
-          <Button
-            type="button"
-            className="absolute bottom-4 right-16"
-            variant={selectedTool === "lightbulb" ? "default" : "outline"}
-            size="sm"
-            aria-label="아이디어 모드"
-            onClick={() => onToolChange("lightbulb")}
-          >
-            <RectangleVertical className="h-4 w-4" />
-            <span>9:16</span> <ChevronDown className="h-2 w-2" />
-          </Button>
-          <Button
-            type="button"
-            className="absolute bottom-4 right-4"
-            size="sm"
-            variant="outline"
-            onClick={handleSend}
-            disabled={disabled}
-          >
-            <SendHorizontal className="w-4 h-4" />
-          </Button>
-        </div>
+        <Form method="post" className="w-full" onSubmit={handleSubmit}>
+          <ChatForm onSubmit={() => navigate("/my/dashboard/project/create")} />
+        </Form>
       </div>
     </div>
   );

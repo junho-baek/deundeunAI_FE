@@ -56,37 +56,13 @@ const menus = [
   },
   {
     name: "수익화 AI도구",
-    to: "/tools",
+    to: "/service/shorts",
     items: [
       {
         name: "수익형 쇼츠",
         description:
           "다양한 템플릿을 활용하여 수익형 쇼츠를 자동으로 생성합니다.",
-        to: "/tools/shorts/create",
-      },
-      {
-        name: "수익형 블로그",
-        description:
-          "다양한 템플릿을 활용하여 수익형 블로그를 자동으로 생성 및 운영합니다.",
-        to: "/tools/blog/create",
-      },
-      {
-        name: "수익형 음악(soon)",
-        description:
-          "다양한 템플릿을 활용하여 수익형 음악을 자동으로 생성합니다.",
-        to: "/tools/music/create",
-      },
-      {
-        name: "수익형 이미지(soon)",
-        description:
-          "다양한 템플릿을 활용하여 수익형 이미지를 자동으로 생성합니다.",
-        to: "/tools/image/create",
-      },
-      {
-        name: "수익형 SNS 게시물(soon)",
-        description:
-          "다양한 템플릿을 활용하여 수익형 SNS 게시물을 자동으로 생성합니다.",
-        to: "/tools/sns/create",
+        to: "/service/shorts/create",
       },
     ],
   },
@@ -133,10 +109,12 @@ export default function Navigation({
   isLoggedIn,
   hasNotifications,
   hasMessages,
+  compact,
 }: {
   isLoggedIn: boolean;
   hasNotifications: boolean;
   hasMessages: boolean;
+  compact?: boolean;
 }) {
   return (
     <nav className="flex px-20 h-16 items-center justify-between backdrop-blur fixed top-0 left-0 right-0 z-50 bg-background/50">
@@ -145,75 +123,83 @@ export default function Navigation({
           든든AI
         </Link>
       </div>
-      <div className="flex items-center">
-        <Separator orientation="vertical" className="h-6 mx-4" />
-        <NavigationMenu>
-          <NavigationMenuList>
-            {menus.map((menu) => (
-              <NavigationMenuItem key={menu.name}>
-                {menu.items ? (
-                  <>
-                    <Link to={menu.to}>
-                      <NavigationMenuTrigger>{menu.name}</NavigationMenuTrigger>
+      {!compact && (
+        <div className="flex items-center">
+          <Separator orientation="vertical" className="h-6 mx-4" />
+          <NavigationMenu>
+            <NavigationMenuList>
+              {menus.map((menu) => (
+                <NavigationMenuItem key={menu.name}>
+                  {menu.items ? (
+                    <>
+                      <Link to={menu.to}>
+                        <NavigationMenuTrigger>
+                          {menu.name}
+                        </NavigationMenuTrigger>
+                      </Link>
+                      <NavigationMenuContent>
+                        <ul className="grid w-[600px] font-light gap-3 p-4 grid-cols-2">
+                          {menu.items?.map((item) => (
+                            <NavigationMenuItem
+                              key={item.name}
+                              className={cn([
+                                "select-none rounded-md transition-colors focus:bg-accent  hover:bg-accent",
+                                (item.to === "/products/promote" ||
+                                  item.to === "/jobs/submit") &&
+                                  "col-span-2 bg-primary/10 hover:bg-primary/20 focus:bg-primary/20",
+                              ])}
+                            >
+                              <NavigationMenuLink>
+                                <Link
+                                  className="p-3 space-y-1 block leading-none no-underline outline-none"
+                                  to={item.to}
+                                >
+                                  <Typography variant="small">
+                                    {item.name}
+                                  </Typography>
+                                  <Typography variant="muted">
+                                    {item.description}
+                                  </Typography>
+                                </Link>
+                              </NavigationMenuLink>
+                            </NavigationMenuItem>
+                          ))}
+                        </ul>
+                      </NavigationMenuContent>
+                    </>
+                  ) : (
+                    <Link className={navigationMenuTriggerStyle()} to={menu.to}>
+                      {menu.name}
                     </Link>
-                    <NavigationMenuContent>
-                      <ul className="grid w-[600px] font-light gap-3 p-4 grid-cols-2">
-                        {menu.items?.map((item) => (
-                          <NavigationMenuItem
-                            key={item.name}
-                            className={cn([
-                              "select-none rounded-md transition-colors focus:bg-accent  hover:bg-accent",
-                              (item.to === "/products/promote" ||
-                                item.to === "/jobs/submit") &&
-                                "col-span-2 bg-primary/10 hover:bg-primary/20 focus:bg-primary/20",
-                            ])}
-                          >
-                            <NavigationMenuLink>
-                              <Link
-                                className="p-3 space-y-1 block leading-none no-underline outline-none"
-                                to={item.to}
-                              >
-                                <Typography variant="small">
-                                  {item.name}
-                                </Typography>
-                                <Typography variant="muted">
-                                  {item.description}
-                                </Typography>
-                              </Link>
-                            </NavigationMenuLink>
-                          </NavigationMenuItem>
-                        ))}
-                      </ul>
-                    </NavigationMenuContent>
-                  </>
-                ) : (
-                  <Link className={navigationMenuTriggerStyle()} to={menu.to}>
-                    {menu.name}
-                  </Link>
-                )}
-              </NavigationMenuItem>
-            ))}
-          </NavigationMenuList>
-        </NavigationMenu>
-      </div>
+                  )}
+                </NavigationMenuItem>
+              ))}
+            </NavigationMenuList>
+          </NavigationMenu>
+        </div>
+      )}
       {isLoggedIn ? (
         <div className="flex items-center gap-4">
-          <Button size="icon" variant="ghost" asChild className="relative">
-            <Link to="/my/notifications">
-              <BellIcon className="size-4" />
-              {hasNotifications && (
-                <div className="absolute top-1.5 right-1.5 size-2 bg-red-500 rounded-full" />
-              )}
-            </Link>
-          </Button>
-          <Button size="icon" variant="ghost" asChild className="relative">
-            <Link to="/my/messages">
-              <MessageCircleIcon className="size-4" />
-              {hasMessages && (
-                <div className="absolute top-1.5 right-1.5 size-2 bg-red-500 rounded-full" />
-              )}
-            </Link>
-          </Button>
+          {!compact && (
+            <>
+              <Button size="icon" variant="ghost" asChild className="relative">
+                <Link to="/my/notifications">
+                  <BellIcon className="size-4" />
+                  {hasNotifications && (
+                    <div className="absolute top-1.5 right-1.5 size-2 bg-red-500 rounded-full" />
+                  )}
+                </Link>
+              </Button>
+              <Button size="icon" variant="ghost" asChild className="relative">
+                <Link to="/my/messages">
+                  <MessageCircleIcon className="size-4" />
+                  {hasMessages && (
+                    <div className="absolute top-1.5 right-1.5 size-2 bg-red-500 rounded-full" />
+                  )}
+                </Link>
+              </Button>
+            </>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Avatar>
@@ -235,7 +221,7 @@ export default function Navigation({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link to="/my/profile">
+                  <Link to="/my/settings/profile">
                     <UserIcon className="size-4 mr-2" />
                     <Typography variant="small">Profile</Typography>
                   </Link>

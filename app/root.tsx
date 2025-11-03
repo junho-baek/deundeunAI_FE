@@ -6,6 +6,7 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
+import { useLocation } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -34,7 +35,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <main className="px-20">{children}</main>
+        <main className="">{children}</main>
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -43,13 +44,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const location = useLocation();
+  const isMy = location.pathname.startsWith("/my");
   return (
-    <div className="py-28">
-      <Navigation
-        isLoggedIn={false}
-        hasNotifications={true}
-        hasMessages={true}
-      />
+    <div className={isMy ? "" : "py-28"}>
+      {!isMy && (
+        <Navigation
+          isLoggedIn={true}
+          hasNotifications={true}
+          hasMessages={true}
+          compact={false}
+        />
+      )}
       <Outlet />
     </div>
   );

@@ -132,3 +132,9 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Project detail page: overlay sidebar (do not reserve gap) */
+/* Only when sidebar is expanded: don't reserve horizontal gap */
+.overlay-sidebar [data-slot="sidebar"][data-state="expanded"] [data-slot="sidebar-gap"] {
+  width: 0 !important;
+}
