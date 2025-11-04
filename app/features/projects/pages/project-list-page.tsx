@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import ProjectCard from "~/features/components/project-card";
+import ProjectCard from "~/features/projects/components/project-card";
 
 export default function ProjectListPage() {
   const items = [

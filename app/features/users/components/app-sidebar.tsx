@@ -29,7 +29,7 @@ export function AppSidebar() {
   const isActive = (to: string) => location.pathname.startsWith(to);
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" mobileMode="icon-rail" overlay>
       <SidebarHeader>
         <div className="flex items-center justify-end p-2">
           <SidebarTrigger />

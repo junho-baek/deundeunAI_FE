@@ -57,9 +57,10 @@ export default function HomePage() {
         <h2 className="text-center text-5xl md:text-7xl font-extrabold tracking-tight text-balance bg-linear-to-r from-blue-400 via-cyan-300 via-40% to-fuchsia-400 bg-clip-text text-transparent">
           아이디어를 수익형 쇼츠로 바꿔보세요
         </h2>
-        <Form method="post" className="w-full" onSubmit={handleSubmit}>
+
+        <div className="w-full flex justify-center">
           <ChatForm onSubmit={() => navigate("/my/dashboard/project/create")} />
-        </Form>
+        </div>
       </div>
     </div>
   );

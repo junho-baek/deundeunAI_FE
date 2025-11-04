@@ -155,6 +155,8 @@ function Sidebar({
   side = "left",
   variant = "sidebar",
   collapsible = "offcanvas",
+  mobileMode = "sheet",
+  overlay = false,
   className,
   children,
   ...props
@@ -162,6 +164,8 @@ function Sidebar({
   side?: "left" | "right"
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
+  mobileMode?: "sheet" | "icon-rail"
+  overlay?: boolean
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
@@ -180,7 +184,7 @@ function Sidebar({
     )
   }
 
-  if (isMobile) {
+  if (isMobile && mobileMode === "sheet") {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
@@ -205,9 +209,13 @@ function Sidebar({
     )
   }
 
+  const visibilityClass = isMobile ? "block" : "hidden md:block"
+
+  const containerDisplayClass = isMobile && mobileMode === "icon-rail" ? "flex" : "hidden md:flex"
+
   return (
     <div
-      className="group peer text-sidebar-foreground hidden md:block"
+      className={cn("group peer text-sidebar-foreground", visibilityClass)}
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-variant={variant}
@@ -218,7 +226,8 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
+          "relative bg-transparent transition-[width] duration-200 ease-linear",
+          overlay ? "w-0" : "w-(--sidebar-width)",
           "group-data-[collapsible=offcanvas]:w-0",
           "group-data-[side=right]:rotate-180",
           variant === "floating" || variant === "inset"
@@ -229,7 +238,8 @@ function Sidebar({
       <div
         data-slot="sidebar-container"
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
+          "fixed inset-y-0 z-10 h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear",
+          containerDisplayClass,
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -258,7 +268,7 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, isMobile, setOpen } = useSidebar()
 
   return (
     <Button
@@ -270,6 +280,10 @@ function SidebarTrigger({
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
+        // Ensure mobile icon-rail mode can expand/collapse by also toggling open state
+        if (isMobile) {
+          setOpen((prev) => !prev)
+        }
       }}
       {...props}
     >

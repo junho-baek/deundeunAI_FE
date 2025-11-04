@@ -51,7 +51,7 @@ export default function ChatForm({
       className={"w-full " + (className ?? "")}
       onSubmit={handleSubmit}
     >
-      <div className="relative w-full max-w-5xl mt-6 border border-white/10 rounded-2xl">
+      <div className="relative w-full mx-auto max-w-5xl mt-6 border border-white/10 rounded-2xl">
         <Textarea
           id="message"
           placeholder={
