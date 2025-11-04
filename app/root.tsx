@@ -50,9 +50,9 @@ export default function App() {
     <div className={isMy ? "" : "py-28"}>
       {!isMy && (
         <Navigation
-          isLoggedIn={true}
-          hasNotifications={true}
-          hasMessages={true}
+          isLoggedIn={false}
+          hasNotifications={false}
+          hasMessages={false}
           compact={false}
         />
       )}
