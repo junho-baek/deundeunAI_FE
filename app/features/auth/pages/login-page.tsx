@@ -107,7 +107,7 @@ export default function LoginPage() {
         <p className="text-muted-foreground">
           계정이 없으신가요?{" "}
           <Link
-            to="/join"
+            to="/auth/join"
             className="text-muted-foreground hover:text-foreground text-underline underline transition-colors"
           >
             회원가입

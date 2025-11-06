@@ -117,7 +117,12 @@ export default function Navigation({
   compact?: boolean;
 }) {
   return (
-    <nav className="flex px-20 h-16 items-center justify-between backdrop-blur fixed top-0 left-0 right-0 z-50 bg-background/50">
+    <nav
+      className={cn(
+        "flex px-20 h-16 items-center justify-between fixed top-0 left-0 right-0 z-50",
+        compact ? "bg-transparent" : "backdrop-blur bg-background/50"
+      )}
+    >
       <div className="flex items-center min-w-[50px]">
         <Link to="/" className="font-bold tracking-tighter text-lg">
           든든AI
@@ -244,18 +249,20 @@ export default function Navigation({
           </DropdownMenu>
         </div>
       ) : (
-        <div className="flex items-center gap-4">
-          <Button asChild variant="secondary">
-            <Link to="/auth/login">
-              <Typography variant="small">Login</Typography>
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link to="/auth/join">
-              <Typography variant="small">Join</Typography>
-            </Link>
-          </Button>
-        </div>
+        !compact && (
+          <div className="flex items-center gap-4">
+            <Button asChild variant="secondary">
+              <Link to="/auth/login">
+                <Typography variant="small">Login</Typography>
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link to="/auth/join">
+                <Typography variant="small">Join</Typography>
+              </Link>
+            </Button>
+          </div>
+        )
       )}
     </nav>
   );

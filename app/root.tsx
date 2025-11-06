@@ -46,14 +46,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
   const location = useLocation();
   const isMy = location.pathname.startsWith("/my");
+  const isAuth = location.pathname.startsWith("/auth");
   return (
-    <div className={isMy ? "" : "py-28"}>
+    <div className={isMy || isAuth ? "" : "py-28"}>
       {!isMy && (
         <Navigation
-          isLoggedIn={true}
+          isLoggedIn={false}
           hasNotifications={true}
           hasMessages={true}
-          compact={false}
+          compact={isAuth}
         />
       )}
       <Outlet />

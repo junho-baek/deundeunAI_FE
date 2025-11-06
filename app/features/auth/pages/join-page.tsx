@@ -1,4 +1,5 @@
 import { Link, Form } from "react-router";
+import * as React from "react";
 
 import FormButton from "~/common/components/form-button";
 import FormErrors from "~/common/components/form-error";
@@ -21,6 +22,32 @@ import { SignUpButtons } from "../components/auth-login-buttons";
 
 export default function JoinPage() {
   const actionData: unknown = undefined;
+  const [step, setStep] = React.useState(0);
+  const steps = ["name", "email", "password", "confirmPassword"] as const;
+  const [formValues, setFormValues] = React.useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const startX = React.useRef<number | null>(null);
+
+  const goNext = () => setStep((s) => Math.min(s + 1, steps.length - 1));
+  const goPrev = () => setStep((s) => Math.max(s - 1, 0));
+  const onTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (startX.current == null) return;
+    const dx = e.changedTouches[0].clientX - startX.current;
+    startX.current = null;
+    if (Math.abs(dx) < 40) return;
+    if (dx < 0) goNext();
+    else goPrev();
+  };
+  const update = (key: keyof typeof formValues, value: string) =>
+    setFormValues((v) => ({ ...v, [key]: value }));
   return (
     <div className="flex flex-col items-center justify-center gap-4">
       <Card className="w-full max-w-md">
@@ -34,81 +61,170 @@ export default function JoinPage() {
         </CardHeader>
         <CardContent className="grid gap-4">
           <Form className="flex w-full flex-col gap-5" method="post">
-            <div className="flex flex-col items-start space-y-2">
-              <Label htmlFor="name" className="flex flex-col items-start gap-1">
-                이름
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                required
-                type="text"
-                placeholder="이름"
-              />
-              {false ? (
-                <FormErrors errors={["이름은 필수 항목입니다"]} />
-              ) : null}
-            </div>
-            <div className="flex flex-col items-start space-y-2">
-              <Label
-                htmlFor="email"
-                className="flex flex-col items-start gap-1"
+            <div
+              ref={containerRef}
+              className="overflow-hidden"
+              onTouchStart={onTouchStart}
+              onTouchEnd={onTouchEnd}
+            >
+              <div
+                className="flex transition-transform duration-300"
+                style={{
+                  transform: `translateX(-${(step * 100) / steps.length}%)`,
+                  width: `${steps.length * 100}%`,
+                }}
               >
-                이메일
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                required
-                type="email"
-                placeholder="예: user@example.com"
-              />
-              {false ? (
-                <FormErrors errors={["유효하지 않은 이메일 주소입니다"]} />
-              ) : null}
+                {/* slide 1 */}
+                <div
+                  className="w-full px-1 shrink-0"
+                  style={{ width: `${100 / steps.length}%` }}
+                >
+                  <div className="flex flex-col items-start space-y-2">
+                    <Label
+                      htmlFor="name"
+                      className="flex flex-col items-start gap-1"
+                    >
+                      이름
+                    </Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      required
+                      type="text"
+                      placeholder="이름"
+                      value={formValues.name}
+                      onChange={(e) => update("name", e.target.value)}
+                    />
+                    {false ? (
+                      <FormErrors errors={["이름은 필수 항목입니다"]} />
+                    ) : null}
+                  </div>
+                </div>
+                {/* slide 2 */}
+                <div
+                  className="w-full px-1 shrink-0"
+                  style={{ width: `${100 / steps.length}%` }}
+                >
+                  <div className="flex flex-col items-start space-y-2">
+                    <Label
+                      htmlFor="email"
+                      className="flex flex-col items-start gap-1"
+                    >
+                      이메일
+                    </Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      required
+                      type="email"
+                      placeholder="예: user@example.com"
+                      value={formValues.email}
+                      onChange={(e) => update("email", e.target.value)}
+                    />
+                    {false ? (
+                      <FormErrors
+                        errors={["유효하지 않은 이메일 주소입니다"]}
+                      />
+                    ) : null}
+                  </div>
+                </div>
+                {/* slide 3 */}
+                <div
+                  className="w-full px-1 shrink-0"
+                  style={{ width: `${100 / steps.length}%` }}
+                >
+                  <div className="flex flex-col items-start space-y-2">
+                    <Label
+                      htmlFor="password"
+                      className="flex flex-col items-start gap-1"
+                    >
+                      비밀번호
+                      <small className="text-muted-foreground">
+                        최소 8자 이상이어야 합니다.
+                      </small>
+                    </Label>
+                    <Input
+                      id="password"
+                      name="password"
+                      required
+                      type="password"
+                      placeholder="비밀번호 입력"
+                      value={formValues.password}
+                      onChange={(e) => update("password", e.target.value)}
+                    />
+                    {false ? (
+                      <FormErrors
+                        errors={["비밀번호는 최소 8자 이상이어야 합니다"]}
+                      />
+                    ) : null}
+                  </div>
+                </div>
+                {/* slide 4 */}
+                <div
+                  className="w-full px-1 shrink-0"
+                  style={{ width: `${100 / steps.length}%` }}
+                >
+                  <div className="flex flex-col items-start space-y-2">
+                    <Label
+                      htmlFor="confirmPassword"
+                      className="flex flex-col items-start gap-1"
+                    >
+                      비밀번호 확인
+                    </Label>
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      required
+                      type="password"
+                      placeholder="비밀번호 확인"
+                      value={formValues.confirmPassword}
+                      onChange={(e) =>
+                        update("confirmPassword", e.target.value)
+                      }
+                    />
+                    {false ? (
+                      <FormErrors errors={["비밀번호가 일치하지 않습니다"]} />
+                    ) : null}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-col items-start space-y-2">
-              <Label
-                htmlFor="password"
-                className="flex flex-col items-start gap-1"
-              >
-                비밀번호
-                <small className="text-muted-foreground">
-                  최소 8자 이상이어야 합니다.
-                </small>
-              </Label>
-              <Input
-                id="password"
-                name="password"
-                required
-                type="password"
-                placeholder="비밀번호 입력"
-              />
-              {false ? (
-                <FormErrors
-                  errors={["비밀번호는 최소 8자 이상이어야 합니다"]}
+
+            {/* progress dots */}
+            <div className="flex items-center justify-center gap-2">
+              {steps.map((_, i) => (
+                <span
+                  key={i}
+                  className={
+                    "h-1.5 w-1.5 rounded-full transition-colors " +
+                    (i === step ? "bg-foreground" : "bg-muted-foreground/30")
+                  }
                 />
-              ) : null}
+              ))}
             </div>
-            <div className="flex flex-col items-start space-y-2">
-              <Label
-                htmlFor="confirmPassword"
-                className="flex flex-col items-start gap-1"
+
+            {/* controls */}
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={goPrev}
+                className="px-3 py-2 rounded-md border text-sm disabled:opacity-50"
+                disabled={step === 0}
               >
-                비밀번호 확인
-              </Label>
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                required
-                type="password"
-                placeholder="비밀번호 확인"
-              />
-              {false ? (
-                <FormErrors errors={["비밀번호가 일치하지 않습니다"]} />
-              ) : null}
+                이전
+              </button>
+              {step < steps.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="ml-auto px-3 py-2 rounded-md border text-sm"
+                >
+                  다음
+                </button>
+              ) : (
+                <FormButton label="계정 생성" className="ml-auto" />
+              )}
             </div>
-            <FormButton label="계정 생성" className="w-full" />
             {false ? (
               <Alert className="bg-green-600/20 text-green-700 dark:bg-green-950/20 dark:text-green-600">
                 <AlertTitle>계정이 생성되었습니다!</AlertTitle>
@@ -153,7 +269,7 @@ export default function JoinPage() {
         <p className="text-muted-foreground">
           이미 계정이 있으신가요?{" "}
           <Link
-            to="/login"
+            to="/auth/login"
             className="text-muted-foreground hover:text-foreground text-underline underline transition-colors"
           >
             로그인

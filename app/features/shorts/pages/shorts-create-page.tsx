@@ -19,7 +19,7 @@ export default function ShortsCreatePage() {
         </h2>
         <div className="w-full flex justify-center">
           <ChatForm onSubmit={() => navigate("/my/dashboard/project/1")} />
-        </div>
+          </div>
       </div>
     </div>
   );

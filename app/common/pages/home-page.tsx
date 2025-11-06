@@ -59,7 +59,7 @@ export default function HomePage() {
         </h2>
 
         <div className="w-full flex justify-center">
-          <ChatForm onSubmit={() => navigate("/my/dashboard/project/create")} />
+        <ChatForm onSubmit={() => navigate("/my/dashboard/project/create")} />
         </div>
       </div>
     </div>
