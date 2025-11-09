@@ -12,15 +12,17 @@ export default function AppLayout() {
   return (
     <SidebarProvider
       defaultOpen={false}
-      className={overlaySidebar ? "overlay-sidebar" : undefined}
+      className={`h-screen w-screen overflow-hidden ${overlaySidebar ? "overlay-sidebar" : ""}`}
     >
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="flex h-full flex-col overflow-hidden">
         <div className="flex items-center gap-2 p-4">
           <span className="font-bold">든든 AI</span>
         </div>
-        <div className="p-4">
-          <Outlet />
+        <div className="flex-1 overflow-hidden p-4">
+          <div className="h-full w-full overflow-hidden rounded-lg bg-background">
+            <Outlet />
+          </div>
         </div>
       </SidebarInset>
     </SidebarProvider>

@@ -21,6 +21,26 @@ export default [
 
   route("/pricing", "features/pricing/pages/pricing-page.tsx"),
 
+  ...prefix("/usecases", [
+    index("features/usecases/pages/usecases-index-page.tsx"),
+    route("senior", "features/usecases/pages/usecases-senior-page.tsx"),
+    route("freelancer", "features/usecases/pages/usecases-freelancer-page.tsx"),
+    route("company", "features/usecases/pages/usecases-company-page.tsx"),
+  ]),
+
+  ...prefix("/resources", [
+    index("features/resources/pages/resources-index-page.tsx"),
+    route("about", "features/resources/pages/resources-about-page.tsx"),
+    route("blog", "features/resources/pages/resources-blog-page.tsx"),
+    route(
+      "newsletter",
+      "features/resources/pages/resources-newsletter-page.tsx"
+    ),
+    route("free", "features/resources/pages/resources-free-page.tsx"),
+  ]),
+
+  route("/api/docs", "features/api/pages/api-docs-page.tsx"),
+
   ...prefix("/subscribe", [
     index("features/billing/pages/subscribe-page.tsx"),
     route("success", "features/billing/pages/subscribe-success-page.tsx"),
@@ -41,21 +61,29 @@ export default [
           index("features/projects/pages/project-list-page.tsx"),
           route("create", "features/projects/pages/project-create-page.tsx"),
           ...prefix("/:projectId", [
-            index("features/projects/pages/project-page.tsx"),
-            route(
-              "generate",
-              "features/projects/pages/project-generate-page.tsx"
-            ),
-            route(
-              "realtime",
-              "features/projects/pages/project-realtime-page.tsx"
-            ),
-            route(
-              "preview",
-              "features/projects/pages/project-preview-page.tsx"
-            ),
-            route("upload", "features/projects/pages/project-upload-page.tsx"),
-            route("status", "features/projects/pages/project-status-page.tsx"),
+            layout("features/projects/layouts/project-detail-layout.tsx", [
+              index("features/projects/pages/project-workspace-page.tsx"),
+              route(
+                "generate",
+                "features/projects/pages/project-generate-page.tsx"
+              ),
+              route(
+                "realtime",
+                "features/projects/pages/project-realtime-page.tsx"
+              ),
+              route(
+                "preview",
+                "features/projects/pages/project-preview-page.tsx"
+              ),
+              route(
+                "upload",
+                "features/projects/pages/project-upload-page.tsx"
+              ),
+              route(
+                "status",
+                "features/projects/pages/project-status-page.tsx"
+              ),
+            ]),
             route(
               "analytics",
               "features/projects/pages/project-analytics-page.tsx"

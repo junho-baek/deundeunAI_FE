@@ -1,5 +1,19 @@
-import { Link } from "react-router";
+import { type MetaFunction } from "react-router";
+
 import ProjectCard from "~/features/projects/components/project-card";
+
+export const meta: MetaFunction = () => {
+  return [
+    {
+      title: "든든AI - 프로젝트 목록",
+    },
+    {
+      name: "description",
+      content:
+        "진행 중인 프로젝트와 자동화 성과를 확인하고 새 프로젝트를 시작하세요.",
+    },
+  ];
+};
 
 export default function ProjectListPage() {
   const items = [
@@ -68,7 +82,7 @@ export default function ProjectListPage() {
           <ProjectCard
             key={`${item.id}-${idx}`}
             id={item.id}
-            to={`/my/dashboard/project/${item.id}`}
+            to={`/my/dashboard/project/${item.id}/analytics`}
             title={item.title}
             description={item.description}
             likes={item.likes}

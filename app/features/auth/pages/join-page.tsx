@@ -1,4 +1,4 @@
-import { Link, Form } from "react-router";
+import { Link, Form, type MetaFunction } from "react-router";
 import * as React from "react";
 
 import FormButton from "~/common/components/form-button";
@@ -19,6 +19,18 @@ import { Checkbox } from "~/common/components/ui/checkbox";
 import { Input } from "~/common/components/ui/input";
 import { Label } from "~/common/components/ui/label";
 import { SignUpButtons } from "../components/auth-login-buttons";
+
+export const meta: MetaFunction = () => {
+  return [
+    {
+      title: "든든AI - 회원가입",
+    },
+    {
+      name: "description",
+      content: "든든AI 계정을 생성하고 AI 수익 파트너 여정을 시작하세요.",
+    },
+  ];
+};
 
 export default function JoinPage() {
   const actionData: unknown = undefined;

@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { Separator } from "~/common/components/ui/separator";
 import {
   NavigationMenu,
@@ -116,19 +116,34 @@ export default function Navigation({
   hasMessages: boolean;
   compact?: boolean;
 }) {
+  const location = useLocation();
+  const isAuthPage = location.pathname.startsWith("/auth/");
+  const isCompact = compact || isAuthPage;
+  const navAppearance = isAuthPage
+    ? "bg-transparent shadow-none"
+    : isCompact
+      ? "bg-transparent"
+      : "backdrop-blur bg-background/50";
+
   return (
     <nav
       className={cn(
         "flex px-20 h-16 items-center justify-between fixed top-0 left-0 right-0 z-50",
-        compact ? "bg-transparent" : "backdrop-blur bg-background/50"
+        navAppearance
       )}
     >
       <div className="flex items-center min-w-[50px]">
-        <Link to="/" className="font-bold tracking-tighter text-lg">
+        <Link
+          to="/"
+          className={cn(
+            "font-bold tracking-tighter text-lg",
+            isAuthPage && "text-[#F3E9D2]"
+          )}
+        >
           든든AI
         </Link>
       </div>
-      {!compact && (
+      {!isCompact && (
         <div className="flex items-center">
           <Separator orientation="vertical" className="h-6 mx-4" />
           <NavigationMenu>
@@ -185,7 +200,7 @@ export default function Navigation({
       )}
       {isLoggedIn ? (
         <div className="flex items-center gap-4">
-          {!compact && (
+          {!isCompact && (
             <>
               <Button size="icon" variant="ghost" asChild className="relative">
                 <Link to="/my/notifications">

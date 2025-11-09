@@ -4,6 +4,7 @@ import { Check, Edit3, Youtube, Instagram, Twitter } from "lucide-react";
 import { Skeleton } from "~/common/components/ui/skeleton";
 import { Spinner } from "~/common/components/ui/spinner";
 import { AccordionItem, AccordionTrigger, AccordionContent } from "./project-accordion";
+import { Typography } from "~/common/components/typography";
 
 function StepStatus({ loading, done }: { loading?: boolean; done?: boolean }) {
   if (done) return <Check className="h-4 w-4 text-green-500" />;
@@ -27,13 +28,19 @@ export type ProjectFinalVideoProps = {
 export function ProjectFinalVideo({ value, title, videoSrc, headline, description, durationText, loading, done, onSelect, onDone }: ProjectFinalVideoProps) {
   return (
     <AccordionItem value={value}>
-      <AccordionTrigger>
-        <span className="inline-flex items-center gap-2">
+      <AccordionTrigger className="text-base font-semibold leading-tight md:text-lg">
+        <span className="inline-flex items-center gap-3 text-left">
           <StepStatus loading={loading} done={done} />
-          {title}
+          <Typography
+            as="span"
+            variant="h4"
+            className="text-lg font-semibold leading-tight text-foreground md:text-xl"
+          >
+            {title}
+          </Typography>
         </span>
       </AccordionTrigger>
-      <AccordionContent className="flex flex-col gap-4">
+      <AccordionContent className="flex flex-col gap-5 px-4 text-base leading-relaxed">
         {loading ? (
           <div className="mx-auto w-full max-w-[420px] px-2">
             <div className="space-y-2">
@@ -65,10 +72,28 @@ export function ProjectFinalVideo({ value, title, videoSrc, headline, descriptio
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-medium">{headline}</div>
-                    <p className="text-xs text-muted-foreground">{description}</p>
+                    <Typography
+                      as="div"
+                      variant="large"
+                      className="text-base font-semibold leading-snug text-foreground md:text-lg"
+                    >
+                      {headline}
+                    </Typography>
+                    <Typography
+                      as="p"
+                      variant="muted"
+                      className="text-sm leading-relaxed text-muted-foreground first:mt-0"
+                    >
+                      {description}
+                    </Typography>
                   </div>
-                  <span className="text-xs text-muted-foreground">{durationText}</span>
+                  <Typography
+                    as="span"
+                    variant="muted"
+                    className="text-sm leading-relaxed text-muted-foreground"
+                  >
+                    {durationText}
+                  </Typography>
                 </div>
                 <div className="mt-1 flex items-center justify-center gap-3">
                   <button type="button" aria-label="Upload to YouTube" className="inline-flex items-center justify-center rounded-full bg-red-600 text-white h-10 w-10 shadow"><Youtube className="h-5 w-5" /></button>
@@ -78,8 +103,8 @@ export function ProjectFinalVideo({ value, title, videoSrc, headline, descriptio
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={onSelect}><Edit3 className="h-4 w-4" />선택하기</Button>
-              <Button variant="default" className="rounded-full bg-green-500" size="sm" onClick={onDone}><Check className="h-4 w-4" />완료</Button>
+              <Button variant="outline" size="sm" onClick={onSelect} className="px-4 py-2 text-sm md:text-base"><Edit3 className="h-4 w-4" />선택하기</Button>
+              <Button variant="default" className="rounded-full bg-green-500 px-5 py-2 text-sm md:text-base" size="sm" onClick={onDone}><Check className="h-4 w-4" />완료</Button>
             </div>
           </>
         )}

@@ -35,7 +35,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <main className="">{children}</main>
+        <main className="bg-background text-foreground">{children}</main>
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -47,17 +47,36 @@ export default function App() {
   const location = useLocation();
   const isMy = location.pathname.startsWith("/my");
   const isAuth = location.pathname.startsWith("/auth");
+  const surfaceClass = isMy
+    ? ""
+    : isAuth
+      ? "bg-[#F5E9D5] text-foreground"
+      : "bg-background text-foreground";
+  const contentClass = [
+    "flex-1 w-full overflow-y-auto",
+    !isMy && !isAuth ? "pt-16" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const layoutClass = ["flex h-full w-full flex-col", surfaceClass]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className={isMy || isAuth ? "" : "py-28"}>
-      {!isMy && (
-        <Navigation
-          isLoggedIn={false}
-          hasNotifications={true}
-          hasMessages={true}
-          compact={isAuth}
-        />
-      )}
-      <Outlet />
+    <div className="w-screen h-screen overflow-hidden">
+      <div className={layoutClass}>
+        {!isMy && (
+          <Navigation
+            isLoggedIn={false}
+            hasNotifications={true}
+            hasMessages={true}
+            compact={isAuth}
+          />
+        )}
+        <div className={contentClass}>
+          <Outlet />
+        </div>
+      </div>
     </div>
   );
 }

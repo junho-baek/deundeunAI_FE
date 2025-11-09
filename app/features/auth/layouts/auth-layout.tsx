@@ -16,7 +16,7 @@ export default function AuthLayout() {
       </section>
 
       {/* Right auth panel */}
-      <section className="flex items-center justify-center py-16 px-6 overflow-y-auto max-h-screen">
+      <section className="flex items-center justify-center py-16 px-6 overflow-y-auto max-h-screen bg-background">
         <div className="w-full max-w-md">
           <Outlet />
         </div>

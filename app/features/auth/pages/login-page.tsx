@@ -1,4 +1,4 @@
-import { Link, Form } from "react-router";
+import { Link, Form, type MetaFunction } from "react-router";
 
 import FormButton from "~/common/components/form-button";
 import FormErrors from "~/common/components/form-error";
@@ -19,13 +19,26 @@ import { Input } from "~/common/components/ui/input";
 import { Label } from "~/common/components/ui/label";
 import { SignInButtons } from "../components/auth-login-buttons";
 
+export const meta: MetaFunction = () => {
+  return [
+    {
+      title: "든든AI - 로그인",
+    },
+    {
+      name: "description",
+      content:
+        "든든AI 계정으로 로그인하고 콘텐츠 자동화 워크플로우를 이어가세요.",
+    },
+  ];
+};
+
 export default function LoginPage() {
   const actionData: unknown = undefined;
   const fetcherState: "idle" | "submitting" = "idle";
 
   return (
     <div className="flex flex-col items-center justify-center gap-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md bg-card">
         <CardHeader className="flex flex-col items-center">
           <CardTitle className="text-2xl font-semibold">로그인</CardTitle>
           <CardDescription className="text-base">
