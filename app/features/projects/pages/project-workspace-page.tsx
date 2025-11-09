@@ -181,4 +181,3 @@ function renderMarkdown(md: string): string {
   flush();
   return html;
 }
-

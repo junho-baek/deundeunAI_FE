@@ -22,21 +22,28 @@ export default [
   route("/pricing", "features/pricing/pages/pricing-page.tsx"),
 
   ...prefix("/usecases", [
-    index("features/usecases/pages/usecases-index-page.tsx"),
-    route("senior", "features/usecases/pages/usecases-senior-page.tsx"),
-    route("freelancer", "features/usecases/pages/usecases-freelancer-page.tsx"),
-    route("company", "features/usecases/pages/usecases-company-page.tsx"),
+    layout("features/usecases/layouts/usecases-layout.tsx", [
+      index("features/usecases/pages/usecases-index-page.tsx"),
+      route("senior", "features/usecases/pages/usecases-senior-page.tsx"),
+      route(
+        "freelancer",
+        "features/usecases/pages/usecases-freelancer-page.tsx"
+      ),
+      route("company", "features/usecases/pages/usecases-company-page.tsx"),
+    ]),
   ]),
 
   ...prefix("/resources", [
-    index("features/resources/pages/resources-index-page.tsx"),
-    route("about", "features/resources/pages/resources-about-page.tsx"),
-    route("blog", "features/resources/pages/resources-blog-page.tsx"),
-    route(
-      "newsletter",
-      "features/resources/pages/resources-newsletter-page.tsx"
-    ),
-    route("free", "features/resources/pages/resources-free-page.tsx"),
+    layout("features/resources/layouts/resources-layout.tsx", [
+      index("features/resources/pages/resources-index-page.tsx"),
+      route("about", "features/resources/pages/resources-about-page.tsx"),
+      route("blog", "features/resources/pages/resources-blog-page.tsx"),
+      route(
+        "newsletter",
+        "features/resources/pages/resources-newsletter-page.tsx"
+      ),
+      route("free", "features/resources/pages/resources-free-page.tsx"),
+    ]),
   ]),
 
   route("/api/docs", "features/api/pages/api-docs-page.tsx"),

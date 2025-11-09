@@ -7,7 +7,8 @@ export const meta: MetaFunction = () => {
     },
     {
       name: "description",
-      content: "요청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도하거나 지원팀에 문의하세요.",
+      content:
+        "요청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도하거나 지원팀에 문의하세요.",
     },
   ];
 };
@@ -20,5 +21,3 @@ export default function ErrorPage() {
     </main>
   );
 }
-
-
