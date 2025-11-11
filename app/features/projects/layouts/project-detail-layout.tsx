@@ -197,13 +197,13 @@ export default function ProjectDetailLayout() {
             aria-label="프로젝트 AI 어시스턴트"
           >
             <div className="flex h-full flex-col overflow-hidden">
-              <Typography
+              {/* <Typography
                 as="h2"
                 variant="h4"
                 className="mb-3 text-left text-xl font-semibold leading-tight"
               >
                 든든 AI 어시스턴트
-              </Typography>
+              </Typography> */}
               <div className="flex-1 space-y-3 overflow-y-auto pr-2">
                 {messages.length === 0 ? (
                   <Typography

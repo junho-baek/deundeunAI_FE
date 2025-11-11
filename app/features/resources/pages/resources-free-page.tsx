@@ -17,6 +17,9 @@ import {
   CardTitle,
 } from "~/common/components/ui/card";
 import { Typography } from "~/common/components/typography";
+import { ResourceCallout } from "../components/resource-callout";
+import { ResourceHero } from "../components/resource-hero";
+import { ResourceSectionHeader } from "../components/resource-section-header";
 
 const starterKits = [
   {
@@ -103,57 +106,27 @@ export const meta: MetaFunction = () => {
 export default function ResourcesFreePage() {
   return (
     <div className="bg-background text-foreground">
-      <section className="relative overflow-hidden border-b">
-        <div className="absolute inset-x-0 top-0 mx-auto h-72 max-w-6xl rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative mx-auto flex max-w-5xl flex-col gap-8 px-6 pb-16 pt-24 text-center md:pt-28">
-          <span className="inline-flex items-center gap-2 self-center rounded-full border border-primary/30 bg-primary/15 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-primary">
-            <GiftIcon className="size-4" />
-            Free Resources
-          </span>
-          <Typography
-            variant="h1"
-            className="text-balance text-4xl md:text-5xl"
-          >
-            누구나 시작할 수 있도록, 든든AI 무료 자료를 공개합니다
-          </Typography>
-          <Typography
-            variant="lead"
-            className="mx-auto max-w-3xl text-muted-foreground"
-          >
-            처음 콘텐츠 제작을 시작해도 문제없도록 기획, 촬영, 자동화,
-            수익화까지 필요한 리소스를 하나의 패키지로 정리했습니다. 뉴스레터
-            구독과 함께 항상 최신 버전을 제공해 드립니다.
-          </Typography>
-          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg">
-              <Link to="/resources/newsletter">
-                무료 뉴스레터 구독하기
-                <ArrowRightIcon className="ml-2 size-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="ghost">
-              <Link to="/auth/join">든든AI 계정 만들기</Link>
-            </Button>
-          </div>
-          <div className="w-full max-w-4xl rounded-3xl border border-dashed border-muted/40 bg-linear-to-br from-muted/20 via-background to-muted/40 p-1">
-            <div className="aspect-video w-full rounded-[calc(var(--radius-3xl)-4px)] bg-background/80" />
-          </div>
-          <Typography variant="muted" className="text-xs text-muted-foreground">
-            ※ 무료 자료 패키지 미리보기 이미지가 들어갈 자리입니다.
-          </Typography>
-        </div>
-      </section>
+      <ResourceHero
+        badgeIcon={GiftIcon}
+        badgeLabel="Free Resources"
+        title="누구나 시작할 수 있도록, 든든AI 무료 자료를 공개합니다"
+        description="처음 콘텐츠 제작을 시작해도 문제없도록 기획, 촬영, 자동화, 수익화까지 필요한 리소스를 하나의 패키지로 정리했습니다. 뉴스레터 구독과 함께 항상 최신 버전을 제공해 드립니다."
+        primaryCtaLabel="무료 뉴스레터 구독하기"
+        primaryCtaHref="/resources/newsletter"
+        secondaryCtaLabel="든든AI 계정 만들기"
+        secondaryCtaHref="/auth/join"
+        secondaryCtaVariant="ghost"
+        showPlaceholder
+        placeholderCaption="※ 무료 자료 패키지 미리보기 이미지가 들어갈 자리입니다."
+      />
 
       <section className="mx-auto max-w-6xl px-6 py-16 md:py-20">
-        <Typography variant="h3" className="text-center md:text-3xl">
-          무료 스타터 킷 구성
-        </Typography>
-        <Typography
-          variant="muted"
-          className="mx-auto mt-3 max-w-2xl text-center"
-        >
-          시니어, 부업인, 기업 고객을 위한 맞춤 패키지를 선택해 다운로드하세요.
-        </Typography>
+        <ResourceSectionHeader
+          title="무료 스타터 킷 구성"
+          description="시니어, 부업인, 기업 고객을 위한 맞춤 패키지를 선택해 다운로드하세요."
+          align="center"
+          className="max-w-4xl"
+        />
         <div className="mt-12 grid gap-6 lg:grid-cols-3">
           {starterKits.map((kit) => (
             <Card key={kit.title} className="border-muted/50 bg-background/70">
@@ -189,15 +162,12 @@ export default function ResourcesFreePage() {
 
       <section className="border-y bg-muted/10">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
-          <Typography variant="h3" className="text-center md:text-3xl">
-            세 단계로 빠르게 활용해 보세요
-          </Typography>
-          <Typography
-            variant="muted"
-            className="mx-auto mt-3 max-w-2xl text-center"
-          >
-            자료를 받은 뒤 어떻게 활용하면 좋을지 단계별로 안내해 드립니다.
-          </Typography>
+          <ResourceSectionHeader
+            title="세 단계로 빠르게 활용해 보세요"
+            description="자료를 받은 뒤 어떻게 활용하면 좋을지 단계별로 안내해 드립니다."
+            align="center"
+            className="max-w-4xl"
+          />
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {steps.map((step, index) => (
               <Card
@@ -255,9 +225,11 @@ export default function ResourcesFreePage() {
             </CardContent>
           </Card>
           <div className="space-y-6">
-            <Typography variant="h3" className="md:text-3xl">
-              자주 묻는 질문
-            </Typography>
+            <ResourceSectionHeader
+              title="자주 묻는 질문"
+              align="left"
+              className="max-w-xl"
+            />
             <div className="space-y-4">
               {faqs.map((item) => (
                 <div
@@ -281,37 +253,34 @@ export default function ResourcesFreePage() {
       </section>
 
       <section className="mx-auto max-w-5xl px-6 pb-20">
-        <div className="rounded-3xl border border-primary/30 bg-primary/10 p-10 text-center shadow-xl backdrop-blur">
-          <Typography variant="h3" className="text-3xl">
-            자료를 다운받고 첫 번째 결과물을 만들어 보세요
-          </Typography>
-          <Typography variant="muted" className="mx-auto mt-4 max-w-3xl">
-            어려움이 생기면 언제든지{" "}
-            <Link
-              to="mailto:hello@ddeundeun.ai"
-              className="text-primary underline"
-            >
-              hello@ddeundeun.ai
-            </Link>
-            로 문의하거나 커뮤니티에 질문을 남겨 주세요. 든든AI 팀이 직접
-            도와드리겠습니다.
-          </Typography>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg">
-              <Link to="/resources/newsletter">
-                무료 자료 받기
-                <ArrowRightIcon className="ml-2 size-4" />
+        <ResourceCallout
+          title="자료를 다운받고 첫 번째 결과물을 만들어 보세요"
+          description={
+            <>
+              어려움이 생기면 언제든지{" "}
+              <Link
+                to="mailto:hello@ddeundeun.ai"
+                className="text-primary underline"
+              >
+                hello@ddeundeun.ai
               </Link>
-            </Button>
-            <Button asChild size="lg" variant="ghost">
-              <Link to="/usecases/company">기업 도입 사례 보기</Link>
-            </Button>
-          </div>
-          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-primary">
-            <ShieldCheckIcon className="size-4" />
-            100% 무료 · 언제든지 해지 가능
-          </div>
-        </div>
+              로 문의하거나 커뮤니티에 질문을 남겨 주세요. 든든AI 팀이 직접
+              도와드리겠습니다.
+            </>
+          }
+          containerClassName="border-primary/30 bg-primary/10 p-10 text-center shadow-xl backdrop-blur"
+          primaryCtaLabel="무료 자료 받기"
+          primaryCtaHref="/resources/newsletter"
+          secondaryCtaLabel="기업 도입 사례 보기"
+          secondaryCtaHref="/usecases/company"
+          secondaryCtaVariant="ghost"
+          footnote={
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-primary">
+              <ShieldCheckIcon className="size-4" />
+              100% 무료 · 언제든지 해지 가능
+            </div>
+          }
+        />
       </section>
     </div>
   );

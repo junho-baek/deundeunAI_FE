@@ -12,6 +12,7 @@ import {
 import { Typography } from "./typography";
 import { cn } from "~/lib/utils";
 import { Button } from "./ui/button";
+import { AnimatedThemeToggler } from "./ui/animated-theme-toggler";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -200,6 +201,7 @@ export default function Navigation({
       )}
       {isLoggedIn ? (
         <div className="flex items-center gap-4">
+          <AnimatedThemeToggler className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/70 text-foreground transition hover:bg-muted" />
           {!isCompact && (
             <>
               <Button size="icon" variant="ghost" asChild className="relative">
@@ -264,20 +266,23 @@ export default function Navigation({
           </DropdownMenu>
         </div>
       ) : (
-        !compact && (
-          <div className="flex items-center gap-4">
-            <Button asChild variant="secondary">
-              <Link to="/auth/login">
-                <Typography variant="small">Login</Typography>
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link to="/auth/join">
-                <Typography variant="small">Join</Typography>
-              </Link>
-            </Button>
-          </div>
-        )
+        <div className="flex items-center gap-4">
+          {!compact && (
+            <>
+              <Button asChild variant="secondary">
+                <Link to="/auth/login">
+                  <Typography variant="small">Login</Typography>
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link to="/auth/join">
+                  <Typography variant="small">Join</Typography>
+                </Link>
+              </Button>
+            </>
+          )}
+          <AnimatedThemeToggler className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/70 text-foreground transition hover:bg-muted" />
+        </div>
       )}
     </nav>
   );

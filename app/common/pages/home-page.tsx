@@ -6,7 +6,7 @@ import {
   useOutlet,
 } from "react-router";
 import { Button } from "~/common/components/ui/button";
-import ChatForm from "~/common/components/chat-form";
+import { ShortsHero } from "~/common/components/shorts-hero";
 
 export const meta: MetaFunction = () => {
   return [
@@ -21,16 +21,12 @@ export default function HomePage() {
   return (
     <div className="bg-background text-foreground">
       <section className="w-full bg-background">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 px-6 py-20 text-center md:gap-8 md:py-28">
-          <p className="text-base text-muted-foreground">#1 shorts 제작 도구</p>
-          <h2 className="text-balance text-4xl font-extrabold tracking-tight bg-linear-to-r from-primary via-secondary to-accent bg-clip-text text-transparent md:text-6xl">
-            아이디어를 수익형 쇼츠로 바꿔보세요
-          </h2>
-          <div className="w-full max-w-3xl">
-            <ChatForm
-              onSubmit={() => navigate("/my/dashboard/project/create")}
-            />
-          </div>
+        <div className="mx-auto w-full px-6 py-20 text-center md:py-28">
+          <ShortsHero
+            onSubmit={() => navigate("/my/dashboard/project/create")}
+            headingClassName="text-balance text-4xl font-extrabold tracking-tight md:text-6xl"
+            formWrapperClassName="w-full max-w-3xl flex justify-center"
+          />
         </div>
       </section>
       {outlet ?? <SeniorShowcase />}

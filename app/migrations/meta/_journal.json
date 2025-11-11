@@ -8,6 +8,20 @@
       "when": 1762286845350,
       "tag": "0000_modern_white_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1762829960549,
+      "tag": "0001_hesitant_nightmare",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1762839256477,
+      "tag": "0002_flawless_darkstar",
+      "breakpoints": true
     }
   ]
 }

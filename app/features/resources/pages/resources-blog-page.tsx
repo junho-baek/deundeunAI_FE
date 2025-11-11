@@ -18,6 +18,9 @@ import {
   CardTitle,
 } from "~/common/components/ui/card";
 import { Typography } from "~/common/components/typography";
+import { ResourceCallout } from "../components/resource-callout";
+import { ResourceHero } from "../components/resource-hero";
+import { ResourceSectionHeader } from "../components/resource-section-header";
 
 const categories = [
   {
@@ -116,57 +119,27 @@ export const meta: MetaFunction = () => {
 export default function ResourcesBlogPage() {
   return (
     <div className="bg-background text-foreground">
-      <section className="relative overflow-hidden border-b">
-        <div className="absolute inset-x-0 top-0 mx-auto h-72 max-w-6xl rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative mx-auto flex max-w-5xl flex-col gap-8 px-6 pb-16 pt-24 text-center md:pt-28">
-          <span className="inline-flex items-center gap-2 self-center rounded-full border border-primary/30 bg-primary/15 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-primary">
-            <PenSquareIcon className="size-4" />
-            DDEUNDEUN INSIGHTS
-          </span>
-          <Typography
-            variant="h1"
-            className="text-balance text-4xl md:text-5xl"
-          >
-            든든AI 팀이 공유하는 성장 전략과 고객 스토리
-          </Typography>
-          <Typography
-            variant="lead"
-            className="mx-auto max-w-3xl text-muted-foreground"
-          >
-            시니어, 부업인, 브랜드 팀이 실제로 활용한 전략과 데이터를 바탕으로
-            콘텐츠 수익화를 돕는 실전 가이드를 제공합니다.
-          </Typography>
-          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg">
-              <Link to="/resources/newsletter">
-                뉴스레터 구독하기
-                <ArrowRightIcon className="ml-2 size-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="ghost">
-              <Link to="/resources/about">든든AI 소개 읽기</Link>
-            </Button>
-          </div>
-          <div className="w-full max-w-4xl rounded-3xl border border-dashed border-muted/40 bg-linear-to-br from-muted/25 via-background to-muted/40 p-1">
-            <div className="aspect-video w-full rounded-[calc(var(--radius-3xl)-4px)] bg-background/80" />
-          </div>
-          <Typography variant="muted" className="text-xs text-muted-foreground">
-            ※ 향후 블로그 대표 이미지 또는 카드뉴스가 들어갈 공간입니다.
-          </Typography>
-        </div>
-      </section>
+      <ResourceHero
+        badgeIcon={PenSquareIcon}
+        badgeLabel="DDEUNDEUN INSIGHTS"
+        title="든든AI 팀이 공유하는 성장 전략과 고객 스토리"
+        description="시니어, 부업인, 브랜드 팀이 실제로 활용한 전략과 데이터를 바탕으로 콘텐츠 수익화를 돕는 실전 가이드를 제공합니다."
+        primaryCtaLabel="뉴스레터 구독하기"
+        primaryCtaHref="/resources/newsletter"
+        secondaryCtaLabel="든든AI 소개 읽기"
+        secondaryCtaHref="/resources/about"
+        secondaryCtaVariant="ghost"
+        showPlaceholder
+        placeholderCaption="※ 향후 블로그 대표 이미지 또는 카드뉴스가 들어갈 공간입니다."
+      />
 
       <section className="mx-auto max-w-6xl px-6 py-16 md:py-20">
-        <Typography variant="h3" className="text-center md:text-3xl">
-          인기 있는 아티클
-        </Typography>
-        <Typography
-          variant="muted"
-          className="mx-auto mt-3 max-w-2xl text-center"
-        >
-          많은 분들이 저장해 둔 아티클을 먼저 만나보세요. 각 포스트는 실제
-          워크플로우와 템플릿, 데이터 분석을 담고 있습니다.
-        </Typography>
+        <ResourceSectionHeader
+          title="인기 있는 아티클"
+          description="많은 분들이 저장해 둔 아티클을 먼저 만나보세요. 각 포스트는 실제 워크플로우와 템플릿, 데이터 분석을 담고 있습니다."
+          align="center"
+          className="max-w-4xl"
+        />
         <div className="mt-12 grid gap-6 lg:grid-cols-3">
           {featuredPosts.map((post) => (
             <Card key={post.title} className="border-muted/50 bg-background/70">
@@ -200,16 +173,12 @@ export default function ResourcesBlogPage() {
 
       <section className="border-y bg-muted/10">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
-          <Typography variant="h3" className="text-center md:text-3xl">
-            카테고리별로 탐색하기
-          </Typography>
-          <Typography
-            variant="muted"
-            className="mx-auto mt-3 max-w-2xl text-center"
-          >
-            관심 있는 주제를 선택하면 관련 포스트를 추천해 드립니다. 모든
-            아티클은 실전 템플릿과 PDF 자료를 함께 제공합니다.
-          </Typography>
+          <ResourceSectionHeader
+            title="카테고리별로 탐색하기"
+            description="관심 있는 주제를 선택하면 관련 포스트를 추천해 드립니다. 모든 아티클은 실전 템플릿과 PDF 자료를 함께 제공합니다."
+            align="center"
+            className="max-w-4xl"
+          />
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {categories.map(({ name, description, icon: Icon }) => (
               <Card key={name} className="border-muted/50 bg-background/70">
@@ -239,12 +208,12 @@ export default function ResourcesBlogPage() {
       <section className="mx-auto max-w-6xl px-6 py-16 md:py-20">
         <div className="grid gap-8 lg:grid-cols-[0.55fr_0.45fr]">
           <div>
-            <Typography variant="h3" className="md:text-3xl">
-              최신 포스트
-            </Typography>
-            <Typography variant="muted" className="mt-2">
-              실전 사례와 데이터 분석 인사이트를 가장 먼저 확인하세요.
-            </Typography>
+            <ResourceSectionHeader
+              title="최신 포스트"
+              description="실전 사례와 데이터 분석 인사이트를 가장 먼저 확인하세요."
+              align="left"
+              className="max-w-xl"
+            />
             <div className="mt-8 space-y-4">
               {recentPosts.map((post) => (
                 <div
@@ -308,26 +277,16 @@ export default function ResourcesBlogPage() {
       </section>
 
       <section className="mx-auto max-w-5xl px-6 pb-20">
-        <div className="rounded-3xl border border-muted/40 bg-background/80 p-10 text-center shadow-xl">
-          <Typography variant="h3" className="text-3xl">
-            매주 수요일 오전, 인사이트를 메일로 받아보세요
-          </Typography>
-          <Typography variant="muted" className="mx-auto mt-4 max-w-3xl">
-            뉴스레터를 구독하면 운영 템플릿과 영상 가이드, 오프라인 세미나
-            초대장까지 한 번에 전달해 드립니다.
-          </Typography>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg">
-              <Link to="/resources/newsletter">
-                뉴스레터 무료 구독
-                <ArrowRightIcon className="ml-2 size-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="ghost">
-              <Link to="/resources/free">자료 보관함 열어보기</Link>
-            </Button>
-          </div>
-        </div>
+        <ResourceCallout
+          title="매주 수요일 오전, 인사이트를 메일로 받아보세요"
+          description="뉴스레터를 구독하면 운영 템플릿과 영상 가이드, 오프라인 세미나 초대장까지 한 번에 전달해 드립니다."
+          containerClassName="border-muted/40 bg-background/80 p-10 text-center shadow-xl"
+          primaryCtaLabel="뉴스레터 무료 구독"
+          primaryCtaHref="/resources/newsletter"
+          secondaryCtaLabel="자료 보관함 열어보기"
+          secondaryCtaHref="/resources/free"
+          secondaryCtaVariant="ghost"
+        />
       </section>
     </div>
   );

@@ -1,5 +1,4 @@
 import {
-  ArrowRightIcon,
   HandHeartIcon,
   LineChartIcon,
   MegaphoneIcon,
@@ -8,7 +7,6 @@ import {
 } from "lucide-react";
 import { Link, type MetaFunction } from "react-router";
 
-import { Button } from "~/common/components/ui/button";
 import {
   Card,
   CardContent,
@@ -17,6 +15,9 @@ import {
   CardTitle,
 } from "~/common/components/ui/card";
 import { Typography } from "~/common/components/typography";
+import { ResourceCallout } from "../components/resource-callout";
+import { ResourceHero } from "../components/resource-hero";
+import { ResourceSectionHeader } from "../components/resource-section-header";
 
 const values = [
   {
@@ -109,47 +110,21 @@ export const meta: MetaFunction = () => {
 export default function ResourcesAboutPage() {
   return (
     <div className="bg-background text-foreground">
-      <section className="relative overflow-hidden border-b">
-        <div className="absolute inset-x-0 top-0 mx-auto h-72 max-w-6xl rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative mx-auto flex max-w-5xl flex-col gap-8 px-6 pb-16 pt-24 text-center md:pt-28">
-          <span className="inline-flex items-center gap-2 self-center rounded-full border border-primary/30 bg-primary/15 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-primary">
-            <SparklesIcon className="size-4" />
-            About DDEUNDEUN AI
-          </span>
-          <Typography
-            variant="h1"
-            className="text-balance text-4xl md:text-5xl"
-          >
-            든든AI는 시니어와 부업인이 처음 수익을 만들도록 돕는 AI
-            스튜디오입니다
-          </Typography>
-          <Typography
-            variant="lead"
-            className="mx-auto max-w-3xl text-muted-foreground"
-          >
-            기술이 익숙하지 않아도 마음 편히 도전할 수 있도록, AI 자동화와
-            사람의 손길을 결합한 하이브리드 서비스를 제공합니다. 콘텐츠로 수익을
-            만들고 싶은 누구나 든든하게 시작하고 성장할 수 있습니다.
-          </Typography>
-          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg">
-              <Link to="/pricing">
-                요금제 살펴보기
-                <ArrowRightIcon className="ml-2 size-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="ghost">
-              <Link to="/resources/newsletter">뉴스레터 받아보기</Link>
-            </Button>
-          </div>
-          <div className="w-full max-w-4xl rounded-3xl border border-dashed border-muted/40 bg-linear-to-br from-muted/30 via-background to-transparent p-1">
-            <div className="aspect-video w-full rounded-[calc(var(--radius-3xl)-4px)] bg-background/80" />
-          </div>
-          <Typography variant="muted" className="text-xs text-muted-foreground">
-            ※ 브랜드 스토리 이미지를 위해 남겨둔 자리입니다.
-          </Typography>
-        </div>
-      </section>
+      <ResourceHero
+        badgeIcon={SparklesIcon}
+        badgeLabel="About DDEUNDEUN AI"
+        title="든든AI는 시니어와 부업인이 처음 수익을 만들도록 돕는 AI 스튜디오입니다"
+        description="기술이 익숙하지 않아도 마음 편히 도전할 수 있도록, AI 자동화와 사람의 손길을 결합한 하이브리드 서비스를 제공합니다. 콘텐츠로 수익을 만들고 싶은 누구나 든든하게 시작하고 성장할 수 있습니다."
+        primaryCtaLabel="요금제 살펴보기"
+        primaryCtaHref="/pricing"
+        secondaryCtaLabel="뉴스레터 받아보기"
+        secondaryCtaHref="/resources/newsletter"
+        secondaryCtaVariant="ghost"
+        containerMaxWidthClass="max-w-5xl"
+        blurHeightClass="h-72"
+        showPlaceholder
+        placeholderCaption="※ 브랜드 스토리 이미지를 위해 남겨둔 자리입니다."
+      />
 
       <section className="mx-auto max-w-6xl px-6 py-16 md:py-20">
         <div className="grid gap-6 md:grid-cols-3">
@@ -169,16 +144,12 @@ export default function ResourcesAboutPage() {
 
       <section className="border-y bg-muted/10">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
-          <Typography variant="h3" className="text-center md:text-3xl">
-            든든AI 여정
-          </Typography>
-          <Typography
-            variant="muted"
-            className="mx-auto mt-3 max-w-2xl text-center"
-          >
-            고객의 목소리를 바탕으로 꾸준히 제품을 다듬으며 복잡한 디지털 경험을
-            누구나 쓸 수 있는 서비스로 만들고 있습니다.
-          </Typography>
+          <ResourceSectionHeader
+            title="든든AI 여정"
+            description="고객의 목소리를 바탕으로 꾸준히 제품을 다듬으며 복잡한 디지털 경험을 누구나 쓸 수 있는 서비스로 만들고 있습니다."
+            align="center"
+            className="max-w-4xl"
+          />
           <div className="mt-12 grid gap-6 md:grid-cols-4">
             {timeline.map((item) => (
               <Card
@@ -205,13 +176,12 @@ export default function ResourcesAboutPage() {
       <section className="mx-auto max-w-6xl px-6 py-16 md:py-20">
         <div className="grid gap-10 md:grid-cols-[1.2fr_0.8fr] md:items-center">
           <div className="space-y-6">
-            <Typography variant="h3" className="md:text-3xl">
-              든든AI가 만드는 차별화된 경험
-            </Typography>
-            <Typography variant="muted">
-              단순 자동화를 넘어, 고객의 상황과 산업에 맞춰 성과를 설계해
-              드립니다. 데이터 기반으로 동작하는 AI 스튜디오를 경험해 보세요.
-            </Typography>
+            <ResourceSectionHeader
+              title="든든AI가 만드는 차별화된 경험"
+              description="단순 자동화를 넘어, 고객의 상황과 산업에 맞춰 성과를 설계해 드립니다. 데이터 기반으로 동작하는 AI 스튜디오를 경험해 보세요."
+              align="left"
+              className="max-w-2xl"
+            />
             <div className="space-y-6">
               {difference.map((section) => (
                 <div
@@ -278,26 +248,16 @@ export default function ResourcesAboutPage() {
       </section>
 
       <section className="mx-auto max-w-5xl px-6 pb-20">
-        <div className="rounded-3xl border border-primary/30 bg-primary/10 p-10 text-center shadow-lg backdrop-blur">
-          <Typography variant="h3" className="text-3xl">
-            든든AI와 함께 새로운 수익 여정을 시작하세요
-          </Typography>
-          <Typography variant="muted" className="mx-auto mt-4 max-w-3xl">
-            지금 무료 상담을 예약하고, 맞춤형 성장 전략을 받아보세요. 시니어,
-            부업인, 브랜드 팀 모두에게 적합한 솔루션을 준비해 두었습니다.
-          </Typography>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg" variant="ghost">
-              <Link to="/usecases/senior">사용 사례 확인하기</Link>
-            </Button>
-            <Button asChild size="lg">
-              <Link to="/subscribe">
-                컨설턴트와 15분 상담 예약
-                <ArrowRightIcon className="ml-2 size-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
+        <ResourceCallout
+          title="든든AI와 함께 새로운 수익 여정을 시작하세요"
+          description="지금 무료 상담을 예약하고, 맞춤형 성장 전략을 받아보세요. 시니어, 부업인, 브랜드 팀 모두에게 적합한 솔루션을 준비해 두었습니다."
+          containerClassName="border-primary/30 bg-primary/10 p-10 text-center shadow-lg backdrop-blur"
+          primaryCtaLabel="컨설턴트와 15분 상담 예약"
+          primaryCtaHref="/subscribe"
+          secondaryCtaLabel="사용 사례 확인하기"
+          secondaryCtaHref="/usecases/senior"
+          secondaryCtaVariant="ghost"
+        />
       </section>
     </div>
   );

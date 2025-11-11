@@ -101,8 +101,8 @@ export default [
 
       // Settings
       ...prefix("/settings", [
-        route("profile", "features/settings/pages/profile-page.tsx"),
-        route("billing", "features/settings/pages/billing-page.tsx"),
+        route("profile", "features/users/pages/profile-page.tsx"),
+        route("billing", "features/users/pages/billing-page.tsx"),
       ]),
     ]),
   ]),
