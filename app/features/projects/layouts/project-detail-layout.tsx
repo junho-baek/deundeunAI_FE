@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Outlet, useParams } from "react-router";
-import ChatForm from "~/common/components/chat-form";
+import ChatForm, { type ChatFormData } from "~/common/components/chat-form";
 import ChatBox from "~/features/projects/components/chat-box";
 import ChatInitForm, {
   type SurveySection,
@@ -8,7 +8,14 @@ import ChatInitForm, {
 import ChatConfirmCard from "~/features/projects/components/chat-confirm-card";
 import { Typography } from "~/common/components/typography";
 
-type Message = { id: string; role: "user" | "agent"; content: string };
+type MessageAttachment = { name: string; size?: number };
+type Message = {
+  id: string;
+  role: "user" | "agent";
+  content: string;
+  attachments?: MessageAttachment[];
+  aspectRatio?: ChatFormData["aspectRatio"];
+};
 
 type LoadingState = {
   brief: boolean;
@@ -26,7 +33,7 @@ type NarrationSegment = { id: number; label: string; src: string };
 export type ProjectDetailContextValue = {
   projectId?: string;
   messages: Message[];
-  handleSubmit: (message: string) => Promise<void>;
+  handleSubmit: (payload: ChatFormData) => Promise<void>;
   selectedImages: number[];
   toggleSelectImage: (id: number) => void;
   imageTimelines: string[];
@@ -108,28 +115,34 @@ function useProjectDetailState(): ProjectDetailContextValue {
   }, []);
 
   const handleSubmit = React.useCallback(
-    async (message: string) => {
+    async ({ message, images, aspectRatio }: ChatFormData) => {
       if (!projectId) return;
 
-      try {
-        await fetch(`/api/projects/${projectId}/agent`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message }),
-        });
-      } catch (_) {
-        // prototype ignore
-      }
+      const attachmentSummaries: MessageAttachment[] = images.map((file) => ({
+        name: file.name,
+        size: file.size,
+      }));
 
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: "user", content: message },
+        {
+          id: crypto.randomUUID(),
+          role: "user",
+          content: message,
+          attachments: attachmentSummaries,
+          aspectRatio,
+        },
         {
           id: crypto.randomUUID(),
           role: "agent",
-          content: "초안 설문을 준비 중입니다. 제품명과 타깃을 알려주세요.",
+          content:
+            attachmentSummaries.length > 0
+              ? `업로드해 주신 이미지 ${attachmentSummaries.length}개와 ${aspectRatio} 비율을 기반으로 초안을 준비할게요. 제품명과 타깃을 알려주세요.`
+              : `${aspectRatio} 비율로 초안 설문을 준비 중입니다. 제품명과 타깃을 알려주세요.`,
         },
       ]);
+
+      // TODO: 실제 프로젝트 생성/업데이트 완료 시 워크스페이스 페이지로 리다이렉트 처리
     },
     [projectId]
   );
@@ -235,6 +248,13 @@ export default function ProjectDetailLayout() {
 }
 
 function AgentConversationMock() {
+  const { messages } = useProjectDetail();
+  const latestUserMessage = React.useMemo(
+    () => [...messages].reverse().find((message) => message.role === "user"),
+    [messages]
+  );
+  const showAttachments = (latestUserMessage?.attachments?.length ?? 0) > 0;
+
   const sections: SurveySection[] = React.useMemo(
     () => [
       {
@@ -311,9 +331,43 @@ function AgentConversationMock() {
     []
   );
 
+  const hasMessages = messages.length > 0;
+
   return (
     <div className="flex flex-col gap-2">
-      <ChatBox role="user" message="keyword" avatarSrc="/avatar.png" />
+      {hasMessages ? (
+        messages.map((message) => (
+          <ChatBox
+            key={message.id}
+            role={message.role}
+            message={message.content}
+            avatarSrc={message.role === "user" ? "/avatar.png" : "/agent.png"}
+            stackBelowAvatar={message.role === "agent"}
+            childrenFullWidth
+          >
+            {message.role === "user" &&
+            (message.aspectRatio || (message.attachments?.length ?? 0) > 0) ? (
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                {message.aspectRatio ? (
+                  <span className="rounded-full border border-muted-foreground/30 px-2 py-1">
+                    비율 {message.aspectRatio}
+                  </span>
+                ) : null}
+                {message.attachments?.map((attachment, index) => (
+                  <span
+                    key={`${attachment.name}-${index}`}
+                    className="rounded-full border border-muted-foreground/30 px-2 py-1"
+                  >
+                    {attachment.name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </ChatBox>
+        ))
+      ) : (
+        <ChatBox role="user" message="keyword" avatarSrc="/avatar.png" />
+      )}
 
       <ChatBox
         role="agent"

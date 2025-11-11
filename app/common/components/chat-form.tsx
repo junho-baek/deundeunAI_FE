@@ -2,15 +2,18 @@ import * as React from "react";
 import { Button } from "~/common/components/ui/button";
 import { Textarea } from "~/common/components/ui/textarea";
 import { Form } from "react-router";
-import {
-  ImageUp,
-  RectangleVertical,
-  ChevronDown,
-  SendHorizontal,
-} from "lucide-react";
+import { ImageUp, SendHorizontal, X } from "lucide-react";
+
+export type AspectRatioOption = "9:16" | "16:9" | "1:1";
+
+export type ChatFormData = {
+  message: string;
+  images: File[];
+  aspectRatio: AspectRatioOption;
+};
 
 export type ChatFormProps = {
-  onSubmit: (value: string) => void | Promise<void>;
+  onSubmit: (value: ChatFormData) => void | Promise<void>;
   disabled?: boolean;
   placeholder?: string;
   className?: string;
@@ -23,26 +26,61 @@ export default function ChatForm({
   className,
 }: ChatFormProps) {
   const [value, setValue] = React.useState("");
-  const [selectedTool, setSelectedTool] = React.useState<
-    "search" | "lightbulb"
-  >("search");
+  const [images, setImages] = React.useState<File[]>([]);
+  const [aspectRatio, setAspectRatio] =
+    React.useState<AspectRatioOption>("9:16");
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const submitCurrent = React.useCallback(async () => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+
+    const payload: ChatFormData = {
+      message: trimmed,
+      images,
+      aspectRatio,
+    };
+
+    await onSubmit(payload);
+    setValue("");
+    setImages([]);
+  }, [value, images, aspectRatio, onSubmit]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    await onSubmit(trimmed);
-    setValue("");
+    await submitCurrent();
   };
 
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      const trimmed = value.trim();
-      if (!trimmed) return;
-      await onSubmit(trimmed);
-      setValue("");
+      await submitCurrent();
     }
+  };
+
+  const aspectRatioOptions: AspectRatioOption[] = ["9:16", "16:9", "1:1"];
+
+  const handleImageButtonClick = () => {
+    if (disabled || images.length >= 4) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    if (!files.length) return;
+
+    setImages((prev) => {
+      const availableSlots = Math.max(0, 4 - prev.length);
+      if (availableSlots === 0) return prev;
+      const next = files.slice(0, availableSlots);
+      return [...prev, ...next];
+    });
+
+    event.target.value = "";
+  };
+
+  const removeImageAt = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -51,14 +89,23 @@ export default function ChatForm({
       className={"w-full " + (className ?? "")}
       onSubmit={handleSubmit}
     >
-      <div className="relative w-full mx-auto max-w-5xl mt-6 border border-white/10 rounded-2xl">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleImageChange}
+      />
+
+      <div className="relative mx-auto mt-6 w-full max-w-5xl rounded-2xl border border-white/10">
         <Textarea
           id="message"
           placeholder={
             placeholder ??
             "이곳에 아이디어를 입력해주세요. 당신의 아이디어가 당신만의 수익형 컨텐츠가 될거에요"
           }
-          className="w-full rounded-2xl border border-white/10 bg-white/5 dark:bg-white/5 shadow-lg backdrop-blur pl-14 pr-14 py-6 resize-none min-h-[180px]"
+          className="min-h-[180px] w-full resize-none rounded-2xl border border-white/10 bg-white/5 px-14 py-6 shadow-lg backdrop-blur dark:bg-white/5"
           rows={9}
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -66,29 +113,38 @@ export default function ChatForm({
           disabled={disabled}
         />
 
-        <div className="absolute left-4 bottom-4 flex gap-2">
+        <div className="absolute bottom-4 left-4 flex flex-wrap items-center gap-3 pr-4">
           <Button
             type="button"
-            variant={selectedTool === "search" ? "default" : "outline"}
+            variant="outline"
             size="sm"
             aria-label="이미지 업로드"
-            onClick={() => setSelectedTool("search")}
+            onClick={handleImageButtonClick}
+            disabled={disabled || images.length >= 4}
           >
             <ImageUp className="h-4 w-4" />
-            이미지 업로드
+            이미지 업로드 ({images.length}/4)
           </Button>
+
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            비율
+            <select
+              value={aspectRatio}
+              onChange={(event) =>
+                setAspectRatio(event.target.value as AspectRatioOption)
+              }
+              disabled={disabled}
+              className="rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {aspectRatioOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        <Button
-          type="button"
-          className="absolute bottom-4 right-16"
-          variant={selectedTool === "lightbulb" ? "default" : "outline"}
-          size="sm"
-          aria-label="비디오 비율"
-          onClick={() => setSelectedTool("lightbulb")}
-        >
-          <RectangleVertical className="h-4 w-4" />
-          <span>9:16</span> <ChevronDown className="h-2 w-2" />
-        </Button>
+
         <Button
           type="submit"
           className="absolute bottom-4 right-4"
@@ -96,9 +152,33 @@ export default function ChatForm({
           variant="outline"
           disabled={disabled}
         >
-          <SendHorizontal className="w-4 h-4" />
+          <SendHorizontal className="h-4 w-4" />
         </Button>
       </div>
+
+      {images.length > 0 ? (
+        <div className="mx-auto mt-3 flex w-full max-w-5xl flex-wrap gap-2">
+          {images.map((file, index) => (
+            <span
+              key={`${file.name}-${index}`}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm shadow-sm backdrop-blur dark:bg-white/5"
+            >
+              <span className="max-w-[160px] truncate">{file.name}</span>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6"
+                aria-label={`${file.name} 제거`}
+                onClick={() => removeImageAt(index)}
+                disabled={disabled}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </span>
+          ))}
+        </div>
+      ) : null}
     </Form>
   );
 }

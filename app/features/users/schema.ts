@@ -318,6 +318,127 @@ export const profileBillingNotices = pgTable(
   })
 );
 
+export const messageThreadStatusEnum = pgEnum("message_thread_status", [
+  "open",
+  "pending",
+  "resolved",
+  "closed",
+]);
+
+export const messageSenderTypeEnum = pgEnum("message_sender_type", [
+  "system",
+  "assistant",
+  "user",
+]);
+
+export const messageThreads = pgTable(
+  "message_threads",
+  {
+    id: serial("id").primaryKey(),
+    threadId: uuid("thread_id").defaultRandom().notNull(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    subject: text("subject").notNull(),
+    status: messageThreadStatusEnum("status").default("open").notNull(),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    threadIdIdx: uniqueIndex("message_threads_thread_id_unique").on(
+      table.threadId
+    ),
+    profileSubjectIdx: uniqueIndex("message_threads_profile_subject_unique").on(
+      table.profileId,
+      table.subject
+    ),
+  })
+);
+
+export const messageEntries = pgTable(
+  "message_entries",
+  {
+    id: serial("id").primaryKey(),
+    entryId: uuid("entry_id").defaultRandom().notNull(),
+    threadId: integer("thread_id")
+      .notNull()
+      .references(() => messageThreads.id, { onDelete: "cascade" }),
+    senderType: messageSenderTypeEnum("sender_type").notNull(),
+    senderProfileId: uuid("sender_profile_id").references(() => profiles.id, {
+      onDelete: "set null",
+    }),
+    body: text("body").notNull(),
+    attachments: jsonb("attachments")
+      .$type<Array<Record<string, unknown>>>()
+      .default(sql`'[]'::jsonb`)
+      .notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    entryIdIdx: uniqueIndex("message_entries_entry_id_unique").on(
+      table.entryId
+    ),
+    threadCreatedIdx: uniqueIndex("message_entries_thread_created_unique").on(
+      table.threadId,
+      table.createdAt
+    ),
+  })
+);
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: serial("id").primaryKey(),
+    notificationId: uuid("notification_id").defaultRandom().notNull(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    category: text("category"),
+    ctaLabel: text("cta_label"),
+    ctaHref: text("cta_href"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    notificationIdIdx: uniqueIndex("notifications_notification_id_unique").on(
+      table.notificationId
+    ),
+    profileCreatedIdx: uniqueIndex("notifications_profile_created_unique").on(
+      table.profileId,
+      table.createdAt
+    ),
+  })
+);
+
 export type Profile = typeof profiles.$inferSelect;
 export type NewProfile = typeof profiles.$inferInsert;
 
@@ -344,3 +465,12 @@ export type NewProfileInvoice = typeof profileInvoices.$inferInsert;
 
 export type ProfileBillingNotice = typeof profileBillingNotices.$inferSelect;
 export type NewProfileBillingNotice = typeof profileBillingNotices.$inferInsert;
+
+export type MessageThread = typeof messageThreads.$inferSelect;
+export type NewMessageThread = typeof messageThreads.$inferInsert;
+
+export type MessageEntry = typeof messageEntries.$inferSelect;
+export type NewMessageEntry = typeof messageEntries.$inferInsert;
+
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;

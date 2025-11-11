@@ -5,6 +5,7 @@ import {
   doublePrecision,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   serial,
@@ -56,6 +57,14 @@ export const projectMediaAssetSourceEnum = pgEnum(
   ["generated", "uploaded", "external"]
 );
 
+export const projectChannelEnum = pgEnum("project_channel", [
+  "youtube",
+  "instagram",
+  "linkedin",
+  "tiktok",
+  "custom",
+]);
+
 export const projectStepKeyEnum = pgEnum("project_step_key", [
   "brief",
   "script",
@@ -77,6 +86,14 @@ export const projectMessageRoleEnum = pgEnum("project_message_role", [
   "system",
   "user",
   "assistant",
+]);
+
+export const projectFlowStatusEnum = pgEnum("project_flow_status", [
+  "draft",
+  "processing",
+  "paused",
+  "completed",
+  "failed",
 ]);
 
 export const projects = pgTable(
@@ -287,6 +304,35 @@ export const projectSteps = pgTable(
   })
 );
 
+export const projectFlows = pgTable(
+  "project_flows",
+  {
+    id: serial("id").primaryKey(),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    flowKey: text("flow_key").notNull().default("default"),
+    status: projectFlowStatusEnum("status").default("draft").notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    lastMessageId: uuid("last_message_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    projectFlowKeyIdx: uniqueIndex("project_flows_project_flow_key_unique").on(
+      table.projectId,
+      table.flowKey
+    ),
+  })
+);
+
 export const projectMessages = pgTable(
   "project_messages",
   {
@@ -294,11 +340,13 @@ export const projectMessages = pgTable(
     projectId: integer("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    flowId: integer("flow_id").references(() => projectFlows.id, {
+      onDelete: "cascade",
+    }),
     messageId: uuid("message_id").defaultRandom().notNull(),
     parentMessageId: uuid("parent_message_id"),
     role: projectMessageRoleEnum("role").notNull(),
     content: text("content").notNull(),
-    // TODO: 메시지 페이로드 스키마(툴 호출 등) 정의
     payload: jsonb("payload")
       .$type<Record<string, unknown>>()
       .default(sql`'{}'::jsonb`)
@@ -324,6 +372,297 @@ export const projectMessages = pgTable(
   })
 );
 
+export const projectChannelLinks = pgTable(
+  "project_channel_links",
+  {
+    id: serial("id").primaryKey(),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    channel: projectChannelEnum("channel").default("custom").notNull(),
+    url: text("url").notNull(),
+    syncedAt: timestamp("synced_at", { withTimezone: true }),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    projectChannelIdx: uniqueIndex(
+      "project_channel_links_project_channel_unique"
+    ).on(table.projectId, table.channel),
+  })
+);
+
+export const projectHighlights = pgTable(
+  "project_highlights",
+  {
+    id: serial("id").primaryKey(),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    highlightId: uuid("highlight_id").defaultRandom().notNull(),
+    highlightText: text("highlight_text").notNull(),
+    category: text("category"),
+    displayOrder: integer("display_order").default(0).notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    highlightIdIdx: uniqueIndex("project_highlights_highlight_id_unique").on(
+      table.highlightId
+    ),
+    highlightOrderIdx: uniqueIndex(
+      "project_highlights_project_order_unique"
+    ).on(table.projectId, table.displayOrder),
+  })
+);
+
+export const projectRecommendations = pgTable(
+  "project_recommendations",
+  {
+    id: serial("id").primaryKey(),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    recommendationId: uuid("recommendation_id").defaultRandom().notNull(),
+    recommendationText: text("recommendation_text").notNull(),
+    category: text("category"),
+    displayOrder: integer("display_order").default(0).notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    recommendationIdIdx: uniqueIndex(
+      "project_recommendations_recommendation_id_unique"
+    ).on(table.recommendationId),
+    recommendationOrderIdx: uniqueIndex(
+      "project_recommendations_project_order_unique"
+    ).on(table.projectId, table.displayOrder),
+  })
+);
+
+export const projectRevenueForecasts = pgTable(
+  "project_revenue_forecasts",
+  {
+    id: serial("id").primaryKey(),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    forecastId: uuid("forecast_id").defaultRandom().notNull(),
+    month: date("month").notNull(),
+    expectedRevenue: numeric("expected_revenue"),
+    actualRevenue: numeric("actual_revenue"),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    forecastIdIdx: uniqueIndex(
+      "project_revenue_forecasts_forecast_id_unique"
+    ).on(table.forecastId),
+    projectMonthIdx: uniqueIndex(
+      "project_revenue_forecasts_project_month_unique"
+    ).on(table.projectId, table.month),
+  })
+);
+
+export const projectSurveys = pgTable(
+  "project_surveys",
+  {
+    id: serial("id").primaryKey(),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    surveyId: uuid("survey_id").defaultRandom().notNull(),
+    surveyKey: text("survey_key").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    multiple: boolean("multiple").default(false).notNull(),
+    displayOrder: integer("display_order").default(0).notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    surveyIdIdx: uniqueIndex("project_surveys_survey_id_unique").on(
+      table.surveyId
+    ),
+    surveyKeyIdx: uniqueIndex("project_surveys_project_key_unique").on(
+      table.projectId,
+      table.surveyKey
+    ),
+  })
+);
+
+export const projectSurveyOptions = pgTable(
+  "project_survey_options",
+  {
+    id: serial("id").primaryKey(),
+    surveyId: integer("survey_id")
+      .notNull()
+      .references(() => projectSurveys.id, { onDelete: "cascade" }),
+    optionId: uuid("option_id").defaultRandom().notNull(),
+    optionKey: text("option_key").notNull(),
+    label: text("label").notNull(),
+    value: text("value"),
+    displayOrder: integer("display_order").default(0).notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    optionIdIdx: uniqueIndex("project_survey_options_option_id_unique").on(
+      table.optionId
+    ),
+    optionKeyIdx: uniqueIndex("project_survey_options_survey_key_unique").on(
+      table.surveyId,
+      table.optionKey
+    ),
+    optionOrderIdx: uniqueIndex(
+      "project_survey_options_survey_order_unique"
+    ).on(table.surveyId, table.displayOrder),
+  })
+);
+
+export const projectScriptSegments = pgTable(
+  "project_script_segments",
+  {
+    id: serial("id").primaryKey(),
+    documentId: integer("document_id")
+      .notNull()
+      .references(() => projectDocuments.id, { onDelete: "cascade" }),
+    segmentId: uuid("segment_id").defaultRandom().notNull(),
+    paragraphOrder: integer("paragraph_order").default(0).notNull(),
+    content: text("content").notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    segmentIdIdx: uniqueIndex("project_script_segments_segment_id_unique").on(
+      table.segmentId
+    ),
+    paragraphOrderIdx: uniqueIndex(
+      "project_script_segments_document_order_unique"
+    ).on(table.documentId, table.paragraphOrder),
+  })
+);
+
+export const projectAudioSegments = pgTable(
+  "project_audio_segments",
+  {
+    id: serial("id").primaryKey(),
+    documentId: integer("document_id")
+      .notNull()
+      .references(() => projectDocuments.id, { onDelete: "cascade" }),
+    segmentId: uuid("segment_id").defaultRandom().notNull(),
+    segmentOrder: integer("segment_order").default(0).notNull(),
+    label: text("label").notNull(),
+    audioUrl: text("audio_url").notNull(),
+    durationMs: integer("duration_ms"),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    audioSegmentIdIdx: uniqueIndex(
+      "project_audio_segments_segment_id_unique"
+    ).on(table.segmentId),
+    audioSegmentOrderIdx: uniqueIndex(
+      "project_audio_segments_document_order_unique"
+    ).on(table.documentId, table.segmentOrder),
+  })
+);
+
+export const projectMediaTimelines = pgTable(
+  "project_media_timelines",
+  {
+    id: serial("id").primaryKey(),
+    mediaAssetId: integer("media_asset_id")
+      .notNull()
+      .references(() => projectMediaAssets.id, { onDelete: "cascade" }),
+    timelineId: uuid("timeline_id").defaultRandom().notNull(),
+    timelineLabel: text("timeline_label").notNull(),
+    ordinal: integer("ordinal").default(0).notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    timelineIdIdx: uniqueIndex("project_media_timelines_timeline_id_unique").on(
+      table.timelineId
+    ),
+    mediaOrdinalIdx: uniqueIndex(
+      "project_media_timelines_media_ordinal_unique"
+    ).on(table.mediaAssetId, table.ordinal),
+  })
+);
+
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
 
@@ -339,5 +678,38 @@ export type NewProjectMetric = typeof projectMetrics.$inferInsert;
 export type ProjectStep = typeof projectSteps.$inferSelect;
 export type NewProjectStep = typeof projectSteps.$inferInsert;
 
+export type ProjectFlow = typeof projectFlows.$inferSelect;
+export type NewProjectFlow = typeof projectFlows.$inferInsert;
+
 export type ProjectMessage = typeof projectMessages.$inferSelect;
 export type NewProjectMessage = typeof projectMessages.$inferInsert;
+
+export type ProjectChannelLink = typeof projectChannelLinks.$inferSelect;
+export type NewProjectChannelLink = typeof projectChannelLinks.$inferInsert;
+
+export type ProjectHighlight = typeof projectHighlights.$inferSelect;
+export type NewProjectHighlight = typeof projectHighlights.$inferInsert;
+
+export type ProjectRecommendation = typeof projectRecommendations.$inferSelect;
+export type NewProjectRecommendation =
+  typeof projectRecommendations.$inferInsert;
+
+export type ProjectRevenueForecast =
+  typeof projectRevenueForecasts.$inferSelect;
+export type NewProjectRevenueForecast =
+  typeof projectRevenueForecasts.$inferInsert;
+
+export type ProjectSurvey = typeof projectSurveys.$inferSelect;
+export type NewProjectSurvey = typeof projectSurveys.$inferInsert;
+
+export type ProjectSurveyOption = typeof projectSurveyOptions.$inferSelect;
+export type NewProjectSurveyOption = typeof projectSurveyOptions.$inferInsert;
+
+export type ProjectScriptSegment = typeof projectScriptSegments.$inferSelect;
+export type NewProjectScriptSegment = typeof projectScriptSegments.$inferInsert;
+
+export type ProjectAudioSegment = typeof projectAudioSegments.$inferSelect;
+export type NewProjectAudioSegment = typeof projectAudioSegments.$inferInsert;
+
+export type ProjectMediaTimeline = typeof projectMediaTimelines.$inferSelect;
+export type NewProjectMediaTimeline = typeof projectMediaTimelines.$inferInsert;

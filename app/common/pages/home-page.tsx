@@ -20,12 +20,11 @@ export default function HomePage() {
   const outlet = useOutlet();
   return (
     <div className="bg-background text-foreground">
-      <section className="w-full bg-background">
-        <div className="mx-auto w-full px-6 py-20 text-center md:py-28">
+      <section className="pb-40 w-screen bg-background text-foreground">
+        <div className="px-20 space-y-40 min-w-[400px]">
           <ShortsHero
             onSubmit={() => navigate("/my/dashboard/project/create")}
-            headingClassName="text-balance text-4xl font-extrabold tracking-tight md:text-6xl"
-            formWrapperClassName="w-full max-w-3xl flex justify-center"
+            className="mt-20"
           />
         </div>
       </section>
