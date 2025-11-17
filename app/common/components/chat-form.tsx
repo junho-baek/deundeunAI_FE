@@ -30,6 +30,7 @@ export default function ChatForm({
   const [aspectRatio, setAspectRatio] =
     React.useState<AspectRatioOption>("9:16");
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const isComposingRef = React.useRef(false);
 
   const submitCurrent = React.useCallback(async () => {
     const trimmed = value.trim();
@@ -52,10 +53,19 @@ export default function ChatForm({
   };
 
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isComposingRef.current) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       await submitCurrent();
     }
+  };
+
+  const handleCompositionStart = () => {
+    isComposingRef.current = true;
+  };
+
+  const handleCompositionEnd = () => {
+    isComposingRef.current = false;
   };
 
   const aspectRatioOptions: AspectRatioOption[] = ["9:16", "16:9", "1:1"];
@@ -110,6 +120,8 @@ export default function ChatForm({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
+          onCompositionStart={handleCompositionStart}
+          onCompositionEnd={handleCompositionEnd}
           disabled={disabled}
         />
 

@@ -1,5 +1,6 @@
 import {
   redirect,
+  type ActionFunctionArgs,
   type LoaderFunctionArgs,
   type MetaFunction,
 } from "react-router";
@@ -17,6 +18,13 @@ export const meta: MetaFunction = () => {
 };
 
 export function loader({ request }: LoaderFunctionArgs) {
+  const url = new URL(request.url);
+  const search = url.search;
+  const hash = url.hash;
+  return redirect(`/service/shorts/create${search}${hash}`);
+}
+
+export function action({ request }: ActionFunctionArgs) {
   const url = new URL(request.url);
   const search = url.search;
   const hash = url.hash;

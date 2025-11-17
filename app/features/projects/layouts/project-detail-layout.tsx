@@ -1,5 +1,12 @@
 import * as React from "react";
-import { Outlet, useParams } from "react-router";
+import {
+  Outlet,
+  type ClientLoaderFunctionArgs,
+  type LoaderFunctionArgs,
+  useLoaderData,
+  useParams,
+} from "react-router";
+import type { Route } from "./+types/project-detail-layout";
 import ChatForm, { type ChatFormData } from "~/common/components/chat-form";
 import ChatBox from "~/features/projects/components/chat-box";
 import ChatInitForm, {
@@ -7,6 +14,7 @@ import ChatInitForm, {
 } from "~/features/projects/components/chat-init-form";
 import ChatConfirmCard from "~/features/projects/components/chat-confirm-card";
 import { Typography } from "~/common/components/typography";
+import { Separator } from "~/common/components/ui/separator";
 
 type MessageAttachment = { name: string; size?: number };
 type Message = {
@@ -50,10 +58,134 @@ export type ProjectDetailContextValue = {
 const ProjectDetailContext =
   React.createContext<ProjectDetailContextValue | null>(null);
 
-function useProjectDetailState(): ProjectDetailContextValue {
-  const { projectId } = useParams();
+type LoaderData = {
+  initialChatPayload: ChatFormData | null;
+};
 
-  const [messages, setMessages] = React.useState<Message[]>([]);
+function extractInitialChatPayload(url: URL): ChatFormData | null {
+  // project-create-page.tsx의 loader와 동일한 방식으로 쿼리 파라미터 추출
+  const keyword = url.searchParams.get("keyword");
+  const aspectRatioParam = url.searchParams.get("aspectRatio");
+
+  const aspectRatioOptions: ChatFormData["aspectRatio"][] = [
+    "9:16",
+    "16:9",
+    "1:1",
+  ];
+
+  // aspectRatio가 유효한 값인지 확인하고, 없으면 기본값 "9:16" 사용
+  const aspectRatio = aspectRatioOptions.includes(
+    aspectRatioParam as ChatFormData["aspectRatio"]
+  )
+    ? (aspectRatioParam as ChatFormData["aspectRatio"])
+    : "9:16";
+
+  // keyword가 없으면 null 반환
+  if (!keyword || !keyword.trim()) return null;
+
+  return {
+    message: keyword.trim(),
+    images: [],
+    aspectRatio,
+  };
+}
+
+export const loader = async ({
+  request,
+}: LoaderFunctionArgs): Promise<LoaderData> => {
+  const url = new URL(request.url);
+
+  // project-create-page.tsx의 loader와 동일한 방식으로 쿼리 파라미터 처리
+  const keyword = url.searchParams.get("keyword");
+  const aspectRatio = url.searchParams.get("aspectRatio");
+
+  // 쿼리 파라미터가 있는 경우에만 initialChatPayload 생성
+  const initialChatPayload =
+    keyword && keyword.trim() ? extractInitialChatPayload(url) : null;
+
+  return { initialChatPayload };
+};
+
+export const clientLoader = ({
+  context,
+}: ClientLoaderFunctionArgs): LoaderData => {
+  void context;
+
+  if (typeof window === "undefined") {
+    return { initialChatPayload: null };
+  }
+
+  const currentUrl = new URL(window.location.href);
+
+  // project-create-page.tsx의 loader와 동일한 방식으로 쿼리 파라미터 처리
+  const keyword = currentUrl.searchParams.get("keyword");
+  const aspectRatio = currentUrl.searchParams.get("aspectRatio");
+
+  // 쿼리 파라미터가 있는 경우에만 initialChatPayload 생성
+  const initialChatPayload =
+    keyword && keyword.trim() ? extractInitialChatPayload(currentUrl) : null;
+
+  if (initialChatPayload) {
+    currentUrl.searchParams.delete("keyword");
+    currentUrl.searchParams.delete("aspectRatio");
+    window.history.replaceState(window.history.state, "", currentUrl.href);
+  }
+
+  return { initialChatPayload };
+};
+
+function createConversationEntries({
+  message,
+  images,
+  aspectRatio,
+}: ChatFormData): Message[] {
+  const trimmed = message.trim();
+  if (!trimmed) return [];
+
+  const attachmentSummaries: MessageAttachment[] = images.map((file) => ({
+    name: file.name,
+    size: file.size,
+  }));
+
+  return [
+    {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: trimmed,
+      attachments: attachmentSummaries,
+      aspectRatio,
+    },
+    {
+      id: crypto.randomUUID(),
+      role: "agent",
+      content:
+        attachmentSummaries.length > 0
+          ? `업로드해 주신 이미지 ${attachmentSummaries.length}개와 ${aspectRatio} 비율을 기반으로 초안을 준비할게요. 제품명과 타깃을 알려주세요.`
+          : `${aspectRatio} 비율로 초안 설문을 준비 중입니다. 제품명과 타깃을 알려주세요.`,
+    },
+  ];
+}
+
+function useProjectDetailState(
+  loaderDataProp?: LoaderData | null
+): ProjectDetailContextValue {
+  const { projectId } = useParams();
+  const loaderDataFromHook = useLoaderData<LoaderData | null>();
+  const loaderData = loaderDataProp ?? loaderDataFromHook;
+  const initialChatPayload = loaderData?.initialChatPayload ?? null;
+
+  const initialMessages = React.useMemo(
+    () =>
+      initialChatPayload ? createConversationEntries(initialChatPayload) : [],
+    [initialChatPayload]
+  );
+
+  // useState의 lazy initialization을 사용하여 초기값을 함수로 전달
+  // 이렇게 하면 첫 렌더링 시에만 실행되고, 이후에는 실행되지 않음
+  const [messages, setMessages] = React.useState<Message[]>(
+    () => initialMessages
+  );
+  const previousProjectIdRef = React.useRef<string | undefined>(undefined);
   const [selectedImages, setSelectedImages] = React.useState<number[]>([]);
   const imageTimelines = React.useMemo(
     () => [
@@ -114,43 +246,91 @@ function useProjectDetailState(): ProjectDetailContextValue {
     );
   }, []);
 
+  React.useEffect(() => {
+    const hasProjectChanged = previousProjectIdRef.current !== projectId;
+
+    if (hasProjectChanged) {
+      // 프로젝트가 변경되었으면 무조건 초기 메시지로 설정
+      setMessages(initialMessages);
+      previousProjectIdRef.current = projectId;
+    } else if (initialMessages.length > 0) {
+      // 같은 프로젝트인데 초기 메시지가 있고, 현재 메시지가 없으면 초기 메시지로 설정
+      setMessages((prev) => (prev.length > 0 ? prev : initialMessages));
+    }
+  }, [initialMessages, projectId]);
+
+  // loaderData가 나중에 준비되는 경우를 대비해 initialMessages가 변경되면 즉시 반영
+  // 특히 clientLoader가 실행되기 전에 렌더링이 일어나는 경우를 처리
+  React.useEffect(() => {
+    if (initialMessages.length > 0) {
+      // 프로젝트가 변경되지 않았고, 메시지가 없거나 초기 메시지와 다르면 업데이트
+      const hasProjectChanged = previousProjectIdRef.current !== projectId;
+      if (hasProjectChanged || messages.length === 0) {
+        setMessages(initialMessages);
+      }
+    }
+  }, [initialMessages, projectId, messages.length]);
+
+  // clientLoader가 실행되기 전에도 URL에서 직접 쿼리 파라미터를 읽어서 처리
+  // 이렇게 하면 초기 렌더링 시에도 메시지가 표시됨
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && messages.length === 0) {
+      const url = new URL(window.location.href);
+      const keyword = url.searchParams.get("keyword");
+      const aspectRatioParam = url.searchParams.get("aspectRatio");
+
+      if (keyword && keyword.trim()) {
+        const aspectRatioOptions: ChatFormData["aspectRatio"][] = [
+          "9:16",
+          "16:9",
+          "1:1",
+        ];
+        const aspectRatio = aspectRatioOptions.includes(
+          aspectRatioParam as ChatFormData["aspectRatio"]
+        )
+          ? (aspectRatioParam as ChatFormData["aspectRatio"])
+          : "9:16";
+
+        const payload: ChatFormData = {
+          message: keyword.trim(),
+          images: [],
+          aspectRatio,
+        };
+
+        const entries = createConversationEntries(payload);
+        if (entries.length > 0) {
+          setMessages(entries);
+        }
+      }
+    }
+  }, [messages.length]);
+
+  const effectiveMessages = React.useMemo(
+    () => (messages.length > 0 ? messages : initialMessages),
+    [messages, initialMessages]
+  );
+
+  const appendConversation = React.useCallback((payload: ChatFormData) => {
+    const entries = createConversationEntries(payload);
+    if (!entries.length) return;
+    setMessages((prev) => [...prev, ...entries]);
+  }, []);
+
   const handleSubmit = React.useCallback(
-    async ({ message, images, aspectRatio }: ChatFormData) => {
+    async (payload: ChatFormData) => {
       if (!projectId) return;
 
-      const attachmentSummaries: MessageAttachment[] = images.map((file) => ({
-        name: file.name,
-        size: file.size,
-      }));
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "user",
-          content: message,
-          attachments: attachmentSummaries,
-          aspectRatio,
-        },
-        {
-          id: crypto.randomUUID(),
-          role: "agent",
-          content:
-            attachmentSummaries.length > 0
-              ? `업로드해 주신 이미지 ${attachmentSummaries.length}개와 ${aspectRatio} 비율을 기반으로 초안을 준비할게요. 제품명과 타깃을 알려주세요.`
-              : `${aspectRatio} 비율로 초안 설문을 준비 중입니다. 제품명과 타깃을 알려주세요.`,
-        },
-      ]);
+      appendConversation(payload);
 
       // TODO: 실제 프로젝트 생성/업데이트 완료 시 워크스페이스 페이지로 리다이렉트 처리
     },
-    [projectId]
+    [appendConversation, projectId]
   );
 
   return React.useMemo(
     () => ({
       projectId,
-      messages,
+      messages: effectiveMessages,
       handleSubmit,
       selectedImages,
       toggleSelectImage,
@@ -166,10 +346,10 @@ function useProjectDetailState(): ProjectDetailContextValue {
     }),
     [
       done,
+      effectiveMessages,
       handleSubmit,
       imageTimelines,
       loading,
-      messages,
       narrationSegments,
       projectId,
       selectedImages,
@@ -197,8 +377,12 @@ export function useProjectDetail() {
   return fallbackState;
 }
 
-export default function ProjectDetailLayout() {
-  const contextValue = useProjectDetailState();
+export default function ProjectDetailLayout({
+  loaderData,
+}: Route.ComponentProps) {
+  const contextValue = useProjectDetailState(
+    loaderData as LoaderData | null | undefined
+  );
   const { messages, handleSubmit } = contextValue;
 
   return (
@@ -230,7 +414,8 @@ export default function ProjectDetailLayout() {
                   <AgentConversationMock />
                 )}
               </div>
-              <div className="bg-background/50 pb-12 backdrop-blur">
+              <div className="bg-background/70 backdrop-blur">
+                <Separator className="my-4" />
                 <ChatForm onSubmit={handleSubmit} />
               </div>
             </div>

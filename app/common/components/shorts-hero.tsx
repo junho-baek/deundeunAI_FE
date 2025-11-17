@@ -5,6 +5,7 @@ import { cn } from "~/lib/utils";
 
 type ShortsHeroProps = {
   onSubmit: ChatFormProps["onSubmit"];
+  disabled?: boolean;
   className?: string;
   tagline?: string;
   taglineClassName?: string;
@@ -14,6 +15,7 @@ type ShortsHeroProps = {
 
 export function ShortsHero({
   onSubmit,
+  disabled,
   className,
   tagline = "#1 shorts 제작 도구",
   taglineClassName,
@@ -42,7 +44,7 @@ export function ShortsHero({
       </AuroraText>
 
       <div className={cn("flex w-full justify-center", formWrapperClassName)}>
-        <ChatForm onSubmit={onSubmit} />
+        <ChatForm onSubmit={onSubmit} disabled={disabled} />
       </div>
     </div>
   );

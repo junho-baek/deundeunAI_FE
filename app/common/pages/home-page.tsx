@@ -1,10 +1,12 @@
+import * as React from "react";
 import {
   Link,
   Outlet,
   type MetaFunction,
-  useNavigate,
+  useFetcher,
   useOutlet,
 } from "react-router";
+import type { ChatFormData } from "~/common/components/chat-form";
 import { Button } from "~/common/components/ui/button";
 import { ShortsHero } from "~/common/components/shorts-hero";
 
@@ -16,14 +18,35 @@ export const meta: MetaFunction = () => {
 };
 
 export default function HomePage() {
-  const navigate = useNavigate();
+  const fetcher = useFetcher();
   const outlet = useOutlet();
+  const submitting = fetcher.state !== "idle";
+
+  const handleSubmit = React.useCallback(
+    async (payload: ChatFormData) => {
+      const formData = new FormData();
+      formData.append("keyword", payload.message);
+      formData.append("aspectRatio", payload.aspectRatio);
+      for (const image of payload.images) {
+        formData.append("images", image);
+      }
+
+      fetcher.submit(formData, {
+        method: "post",
+        action: "/my/dashboard/project/create",
+        encType: "multipart/form-data",
+      });
+    },
+    [fetcher]
+  );
+
   return (
     <div className="bg-background text-foreground">
       <section className="pb-40 w-screen bg-background text-foreground">
         <div className="px-20 space-y-40 min-w-[400px]">
           <ShortsHero
-            onSubmit={() => navigate("/my/dashboard/project/create")}
+            onSubmit={handleSubmit}
+            disabled={submitting}
             className="mt-20"
           />
         </div>

@@ -861,7 +861,7 @@ INSERT INTO project_revenue_forecasts (
   (
     1,
     1,
-    'rev11111-1111-1111-1111-111111111111',
+    'c242b430-6e2a-4726-af4e-dbeded0981ec',
     '2025-07-01',
     1850000,
     1920000,
@@ -872,7 +872,7 @@ INSERT INTO project_revenue_forecasts (
   (
     2,
     2,
-    'rev22222-2222-2222-2222-222222222222',
+    'a70df008-528c-4836-86c8-e1b555826bc9',
     '2025-08-01',
     1420000,
     1380000,
@@ -883,7 +883,7 @@ INSERT INTO project_revenue_forecasts (
   (
     3,
     3,
-    'rev33333-3333-3333-3333-333333333333',
+    'fd8a0608-74e7-409f-ba05-b86a283064c0',
     '2025-09-01',
     1980000,
     2054000,
@@ -894,7 +894,7 @@ INSERT INTO project_revenue_forecasts (
   (
     4,
     4,
-    'rev44444-4444-4444-4444-444444444444',
+    '159b0bce-e06e-47a8-8a49-9688a700bde6',
     '2025-10-01',
     2100000,
     2129000,
@@ -905,7 +905,7 @@ INSERT INTO project_revenue_forecasts (
   (
     5,
     5,
-    'rev55555-5555-5555-5555-555555555555',
+    '65a01614-f814-4bb0-8c86-37553311ff83',
     '2025-11-01',
     2360000,
     NULL,
@@ -929,7 +929,7 @@ INSERT INTO project_script_segments (
   (
     1,
     1,
-    'seg11111-1111-1111-1111-111111111111',
+    '659cd6c2-5790-41bd-b9e5-7b7f468752e5',
     1,
     '새벽처럼 맑은 향기로 하루를 열어보세요.',
     '{}'::jsonb,
@@ -939,7 +939,7 @@ INSERT INTO project_script_segments (
   (
     2,
     2,
-    'seg22222-2222-2222-2222-222222222222',
+    '022ee5af-1706-4876-ad11-f43330a08057',
     1,
     '첫 5초 안에 고유의 향을 강조하세요.',
     '{}'::jsonb,
@@ -949,7 +949,7 @@ INSERT INTO project_script_segments (
   (
     3,
     3,
-    'seg33333-3333-3333-3333-333333333333',
+    '3a43edbc-5968-4057-a9f4-1ba5e778ee27',
     1,
     '스트레칭 호흡과 함께 은은한 향을 소개합니다.',
     '{}'::jsonb,
@@ -959,7 +959,7 @@ INSERT INTO project_script_segments (
   (
     4,
     4,
-    'seg44444-4444-4444-4444-444444444444',
+    'ffceb379-0be1-4e55-8412-1fc6babf87ff',
     1,
     '홀리데이 오퍼를 알리는 시나리오입니다.',
     '{}'::jsonb,
@@ -969,7 +969,7 @@ INSERT INTO project_script_segments (
   (
     5,
     5,
-    'seg55555-5555-5555-5555-555555555555',
+    'ce8fd982-1027-4ac0-895c-aeb876ebcb00',
     1,
     '다음 에피소드를 기대하게 만드는 한 문장.',
     '{}'::jsonb,
@@ -994,7 +994,7 @@ INSERT INTO project_audio_segments (
   (
     1,
     1,
-    'aud11111-1111-1111-1111-111111111111',
+    '293e08c1-34ce-4433-bf2e-8f1c008fdc52',
     1,
     '브랜드 소개 나레이션',
     'https://cdn.ddeundeun.ai/audio/launch-narration.mp3',
@@ -1006,7 +1006,7 @@ INSERT INTO project_audio_segments (
   (
     2,
     2,
-    'aud22222-2222-2222-2222-222222222222',
+    '971bceea-528a-40ac-bcad-c284f7a4db98',
     1,
     '시니어 고객 멘트',
     'https://cdn.ddeundeun.ai/audio/senior-quote.mp3',
@@ -1018,7 +1018,7 @@ INSERT INTO project_audio_segments (
   (
     3,
     3,
-    'aud33333-3333-3333-3333-333333333333',
+    'b43edf5c-2ad2-4b04-a1e5-274373e74b19',
     1,
     '안정적인 호흡 안내',
     'https://cdn.ddeundeun.ai/audio/breathing-guide.mp3',
@@ -1030,7 +1030,7 @@ INSERT INTO project_audio_segments (
   (
     4,
     4,
-    'aud44444-4444-4444-4444-444444444444',
+    '9cb75ab1-243d-4d3f-9fd1-58459d6f84d8',
     1,
     '프로모션 안내',
     'https://cdn.ddeundeun.ai/audio/promo-callout.mp3',
@@ -1042,7 +1042,7 @@ INSERT INTO project_audio_segments (
   (
     5,
     5,
-    'aud55555-5555-5555-5555-555555555555',
+    '6262ef54-44a5-4c36-9113-28cc55d2b823',
     1,
     '스토리텔링 피날레',
     'https://cdn.ddeundeun.ai/audio/story-finale.mp3',
@@ -1070,7 +1070,7 @@ INSERT INTO project_surveys (
   (
     1,
     1,
-    'surv1111-1111-1111-1111-111111111111',
+    '5cd21550-2a54-47b1-9a63-aa0453d3c883',
     'post_launch_feedback',
     '런칭 이후 시청자 의견 조사',
     '만족도와 CTA 반응을 수집합니다.',
@@ -1083,7 +1083,7 @@ INSERT INTO project_surveys (
   (
     2,
     2,
-    'surv2222-2222-2222-2222-222222222222',
+    '4a20512d-46a7-47e9-95a5-60c19ae47552',
     'onboarding_intake',
     '온보딩 설문',
     '시니어 참여자 정보를 수집합니다.',
@@ -1096,7 +1096,7 @@ INSERT INTO project_surveys (
   (
     3,
     3,
-    'surv3333-3333-3333-3333-333333333333',
+    '2a7e2629-56f1-44f1-8113-4c4b4a7ed1d8',
     'wellness_preferences',
     '웰니스 취향 조사',
     '운동 목적과 시간대를 묻습니다.',
@@ -1109,7 +1109,7 @@ INSERT INTO project_surveys (
   (
     4,
     4,
-    'surv4444-4444-4444-4444-444444444444',
+    'f3d7c955-c555-4f27-91ed-769eaefe6f3b',
     'holiday_offer_feedback',
     '홀리데이 제안 피드백',
     '재구매 고객 반응을 조사합니다.',
@@ -1122,7 +1122,7 @@ INSERT INTO project_surveys (
   (
     5,
     5,
-    'surv5555-5555-5555-5555-555555555555',
+    'de338fc3-6248-4da2-a26c-d3181e4b5181',
     'subscriber_expectations',
     '구독자 기대 조사',
     '스토리텔링 기대 요소를 파악합니다.',
@@ -1150,7 +1150,7 @@ INSERT INTO project_survey_options (
   (
     1,
     1,
-    'opt11111-1111-1111-1111-111111111111',
+    'bc000dfa-0d9b-4f96-abab-548d57e97879',
     'satisfaction_high',
     '매우 만족',
     'high',
@@ -1162,7 +1162,7 @@ INSERT INTO project_survey_options (
   (
     2,
     2,
-    'opt22222-2222-2222-2222-222222222222',
+    'ff94cbe2-236d-4b39-aec9-851f74f0bb07',
     'experience_creator',
     '콘텐츠 제작 경험 있음',
     'experienced',
@@ -1174,7 +1174,7 @@ INSERT INTO project_survey_options (
   (
     3,
     3,
-    'opt33333-3333-3333-3333-333333333333',
+    'c51d8d2d-c6cb-4296-a3c4-a57c3b16aaff',
     'morning_pref',
     '아침 시간 선호',
     'morning',
@@ -1186,7 +1186,7 @@ INSERT INTO project_survey_options (
   (
     4,
     4,
-    'opt44444-4444-4444-4444-444444444444',
+    '663a7783-39ec-469a-b76e-5a92e71d2782',
     'holiday_bundle',
     '번들 구매 의향 있음',
     'bundle_yes',
@@ -1198,7 +1198,7 @@ INSERT INTO project_survey_options (
   (
     5,
     5,
-    'opt55555-5555-5555-5555-555555555555',
+    '4cb2df73-034e-4744-8be7-d6b41f849ad3',
     'story_expect_cliffhanger',
     '클리프행어 기대',
     'cliffhanger',
@@ -1223,7 +1223,7 @@ INSERT INTO project_media_timelines (
   (
     1,
     1,
-    'tim11111-1111-1111-1111-111111111111',
+    'c875b39c-5e8c-46d1-bdbd-9e628c2a16b4',
     '오프닝 훅',
     1,
     '{}'::jsonb,
@@ -1233,7 +1233,7 @@ INSERT INTO project_media_timelines (
   (
     2,
     2,
-    'tim22222-2222-2222-2222-222222222222',
+    'd506e4c0-cb76-487c-84f2-b1ef045882a4',
     '제품 클로즈업',
     1,
     '{}'::jsonb,
@@ -1243,7 +1243,7 @@ INSERT INTO project_media_timelines (
   (
     3,
     3,
-    'tim33333-3333-3333-3333-333333333333',
+    'b46a8a23-fb2d-4b05-bfc6-8ec2e52bb38a',
     '호흡 가이드',
     1,
     '{}'::jsonb,
@@ -1253,7 +1253,7 @@ INSERT INTO project_media_timelines (
   (
     4,
     4,
-    'tim44444-4444-4444-4444-444444444444',
+    '8b0bb792-8e46-465d-9bfb-5a7b5de3305a',
     '오퍼 노출',
     1,
     '{}'::jsonb,
@@ -1263,7 +1263,7 @@ INSERT INTO project_media_timelines (
   (
     5,
     5,
-    'tim55555-5555-5555-5555-555555555555',
+    '30699324-01f4-471e-a514-76a4329883bc',
     '멤버십 강조',
     1,
     '{}'::jsonb,
@@ -1772,7 +1772,7 @@ INSERT INTO billing_products (
 ) VALUES
   (
     1,
-    'prod1111-1111-1111-1111-111111111111',
+    '09daeccd-e493-488c-aff0-e9c9e3ce6cb6',
     'growth-50k',
     'Growth 50K',
     '첫 수익을 보장하는 대표 플랜',
@@ -1786,7 +1786,7 @@ INSERT INTO billing_products (
   ),
   (
     2,
-    'prod2222-2222-2222-2222-222222222222',
+    '5e7d3606-c36d-47bf-8f0b-d359666e3d53',
     'scale-120k',
     'Scale 120K',
     '확장형 자동화 패키지',
@@ -1800,7 +1800,7 @@ INSERT INTO billing_products (
   ),
   (
     3,
-    'prod3333-3333-3333-3333-333333333333',
+    '5053df60-f140-41f8-80a4-d8f659e331e2',
     'enterprise-250k',
     'Enterprise 250K',
     '엔터프라이즈 거버넌스',
@@ -1814,7 +1814,7 @@ INSERT INTO billing_products (
   ),
   (
     4,
-    'prod4444-4444-4444-4444-444444444444',
+    'd7da96f5-0eb1-42d9-b4b1-1b48d827b733',
     'lifetime-creator',
     'Lifetime Creator',
     '평생형 창작자 패키지',
@@ -1828,7 +1828,7 @@ INSERT INTO billing_products (
   ),
   (
     5,
-    'prod5555-5555-5555-5555-555555555555',
+    'e2d5f9af-d4a4-4589-9e67-e912e1b79fbc',
     'coach-addon',
     'Coach Add-on',
     '시니어 코치 애드온',
@@ -2391,7 +2391,7 @@ INSERT INTO admin_announcements (
 ) VALUES
   (
     1,
-    'annc1111-1111-1111-1111-111111111111',
+    'd78c193e-9f5b-47f1-b838-deef6e5b33ed',
     '신규 결제 연동 완료',
     '토스페이 연동이 완료되었습니다. 설정 페이지에서 활성화할 수 있습니다.',
     'published',
@@ -2403,7 +2403,7 @@ INSERT INTO admin_announcements (
   ),
   (
     2,
-    'annc2222-2222-2222-2222-222222222222',
+    '1a6d81ef-6eeb-4aad-975e-d1d1d954f4e2',
     'AI 성우 업데이트',
     '새로운 시니어 친화형 성우 보이스가 추가되었습니다.',
     'published',
@@ -2415,7 +2415,7 @@ INSERT INTO admin_announcements (
   ),
   (
     3,
-    'annc3333-3333-3333-3333-333333333333',
+    '9a1f276a-8f60-4d03-857e-a8b5fb1022ca',
     '콘텐츠 가이드 개정 예정',
     '11월 1일부터 새로운 숏폼 가이드가 적용됩니다.',
     'scheduled',
@@ -2427,7 +2427,7 @@ INSERT INTO admin_announcements (
   ),
   (
     4,
-    'annc4444-4444-4444-4444-444444444444',
+    'b551c674-9276-4ee9-85e8-ad836c2517b3',
     '정기 점검 안내',
     '10월 25일 02:00-04:00 사이 서비스 점검이 진행됩니다.',
     'draft',
@@ -2439,7 +2439,7 @@ INSERT INTO admin_announcements (
   ),
   (
     5,
-    'annc5555-5555-5555-5555-555555555555',
+    '25ff07a5-6021-42c2-a63b-d7facd64c135',
     '시니어 전담 코치 모집',
     '새로운 전담 코치를 모집합니다. 지원은 10월 31일까지입니다.',
     'published',
@@ -2467,7 +2467,7 @@ INSERT INTO admin_tasks (
 ) VALUES
   (
     1,
-    'task1111-1111-1111-1111-111111111111',
+    '937d7490-1c8d-4249-9d2a-445668bd967d',
     '토스 결제 QA',
     '토스 결제 플로우 QA 및 리그레션 테스트 진행',
     'in_progress',
@@ -2480,7 +2480,7 @@ INSERT INTO admin_tasks (
   ),
   (
     2,
-    'task2222-2222-2222-2222-222222222222',
+    '4f5606f4-b28e-42ea-a0ba-10ca468769ca',
     'AI 성우 스튜디오 튜닝',
     '시니어 톤에 맞는 파라미터 튜닝',
     'open',
@@ -2493,7 +2493,7 @@ INSERT INTO admin_tasks (
   ),
   (
     3,
-    'task3333-3333-3333-3333-333333333333',
+    '98b891e5-4f45-4e57-8c2e-3306939a682c',
     '거버넌스 문서 개정',
     '엔터프라이즈 고객 대상 가이드 업데이트',
     'open',
@@ -2506,7 +2506,7 @@ INSERT INTO admin_tasks (
   ),
   (
     4,
-    'task4444-4444-4444-4444-444444444444',
+    '2d064098-19d9-4feb-b5d9-a4cb75b65faf',
     '시스템 점검 공지 작성',
     '점검 공지 초안을 작성하고 일정 확정하기',
     'in_progress',
@@ -2519,7 +2519,7 @@ INSERT INTO admin_tasks (
   ),
   (
     5,
-    'task5555-5555-5555-5555-555555555555',
+    '901c1532-5be5-4f0e-8610-a79936738e1f',
     '코치 모집 공고 홍보',
     '홍보 채널 리스트업 및 발송 일정 수립',
     'open',
@@ -2702,7 +2702,7 @@ INSERT INTO dashboard_goals (
 ) VALUES
   (
     1,
-    'goal1111-1111-1111-1111-111111111111',
+    '1682e3b7-3841-4d09-996d-ac7b72de5e59',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     'q4_revenue',
     'Q4 수익 목표',
@@ -2719,7 +2719,7 @@ INSERT INTO dashboard_goals (
   ),
   (
     2,
-    'goal2222-2222-2222-2222-222222222222',
+    '4da42aba-799f-403c-947b-f6031cacd8a7',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     'subscriber_growth',
     '구독자 전환',
@@ -2736,7 +2736,7 @@ INSERT INTO dashboard_goals (
   ),
   (
     3,
-    'goal3333-3333-3333-3333-333333333333',
+    'f9c7b4b0-da6f-43e0-8450-a3cb6918d7b6',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     'automation_success',
     '자동화 성공률 유지',
@@ -2753,7 +2753,7 @@ INSERT INTO dashboard_goals (
   ),
   (
     4,
-    'goal4444-4444-4444-4444-444444444444',
+    '1169c17d-d397-42d3-9210-242b728d55e7',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     'coach_sessions',
     '코칭 세션 이행',
@@ -2770,7 +2770,7 @@ INSERT INTO dashboard_goals (
   ),
   (
     5,
-    'goal5555-5555-5555-5555-555555555555',
+    'a0ac9db9-f03a-4482-a664-3e99f9b4e43c',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     'retention_improvement',
     '리텐션 향상',
@@ -2803,7 +2803,7 @@ INSERT INTO dashboard_widgets (
 ) VALUES
   (
     1,
-    'widg1111-1111-1111-1111-111111111111',
+    'ad4e8981-3372-43fa-9591-5160ea9cce53',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     'metric',
     '핵심 지표',
@@ -2816,7 +2816,7 @@ INSERT INTO dashboard_widgets (
   ),
   (
     2,
-    'widg2222-2222-2222-2222-222222222222',
+    'eab62b79-2ce8-41f0-a17b-bbe891e2b086',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     'chart',
     '수익 추이',
@@ -2829,7 +2829,7 @@ INSERT INTO dashboard_widgets (
   ),
   (
     3,
-    'widg3333-3333-3333-3333-333333333333',
+    '608edaf6-f4dd-4f0a-a7e7-0a0e98383df8',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     'list',
     '실행 해야 할 작업',
@@ -2842,7 +2842,7 @@ INSERT INTO dashboard_widgets (
   ),
   (
     4,
-    'widg4444-4444-4444-4444-444444444444',
+    'ec9ca576-3dfd-4fdf-b21a-46eb2a2ef823',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     'cta',
     '새 프로젝트 만들기',
@@ -2878,7 +2878,7 @@ INSERT INTO resource_collections (
 ) VALUES
   (
     1,
-    'rc111111-1111-1111-1111-111111111111',
+    'd630e3d0-91bf-4ab6-af1b-61529541473f',
     'free-starter-kit',
     '무료 스타터 킷',
     '시니어, 부업인을 위한 무료 템플릿 모음입니다.',
@@ -2898,7 +2898,7 @@ INSERT INTO resource_collections (
   ),
   (
     2,
-    'rc222222-2222-2222-2222-222222222222',
+    '785e23aa-8a7d-4171-8ac6-dc0a7bae7f1b',
     'newsletter-playbook',
     '뉴스레터 플레이북',
     '주간 뉴스레터 운영 체크리스트를 제공합니다.',
@@ -2918,7 +2918,7 @@ INSERT INTO resource_collections (
   ),
   (
     3,
-    'rc333333-3333-3333-3333-333333333333',
+    '5eb7a791-4fe1-4e36-bdcd-9062dec333e2',
     'case-study-pack',
     '사례 연구 팩',
     '든든AI 고객의 성공 사례를 정리했습니다.',
@@ -2938,7 +2938,7 @@ INSERT INTO resource_collections (
   ),
   (
     4,
-    'rc444444-4444-4444-4444-444444444444',
+    '649168f3-a992-4a92-bd10-f87d5819ca7a',
     'governance-kit',
     '거버넌스 킷',
     '엔터프라이즈 거버넌스 자료 모음입니다.',
@@ -2958,7 +2958,7 @@ INSERT INTO resource_collections (
   ),
   (
     5,
-    'rc555555-5555-5555-5555-555555555555',
+    '36ebdf2d-34e1-465f-9eea-9e01102d636c',
     'creator-automation',
     '크리에이터 자동화 묶음',
     '콘텐츠 자동화를 위한 노션, 시트 템플릿을 제공합니다.',
@@ -2997,7 +2997,7 @@ INSERT INTO resource_collection_items (
   (
     1,
     1,
-    'rci11111-1111-1111-1111-111111111111',
+    'fc0f5577-c075-4c2c-bf26-138da33f2698',
     'starter_kit',
     '시니어 첫 쇼츠 제작 패키지',
     '스크립트 템플릿과 촬영 체크리스트를 제공합니다.',
@@ -3012,7 +3012,7 @@ INSERT INTO resource_collection_items (
   (
     2,
     1,
-    'rci22222-2222-2222-2222-222222222222',
+    'fab90756-2ac0-45d4-aa63-53ace41e33fd',
     'starter_kit',
     '부업인 자동화 스타터',
     '콘텐츠 캘린더와 자동화 시나리오를 제공합니다.',
@@ -3027,7 +3027,7 @@ INSERT INTO resource_collection_items (
   (
     3,
     2,
-    'rci33333-3333-3333-3333-333333333333',
+    'b067246f-3cb9-437d-b14c-983a9f663bdb',
     'step',
     '뉴스레터 발송 절차',
     '주간 뉴스레터 발송 로드맵입니다.',
@@ -3042,7 +3042,7 @@ INSERT INTO resource_collection_items (
   (
     4,
     3,
-    'rci44444-4444-4444-4444-444444444444',
+    'e0f0f4c0-c971-45d1-b528-fd806c1f1d8f',
     'callout',
     '엔터프라이즈 도입 사례',
     '제조, 교육, 라이프스타일 분야 성공 사례를 제공합니다.',
@@ -3057,7 +3057,7 @@ INSERT INTO resource_collection_items (
   (
     5,
     5,
-    'rci55555-5555-5555-5555-555555555555',
+    'f1811f84-192a-4638-a770-b539ad2544c8',
     'starter_kit',
     '크리에이터 자동화 툴킷',
     '노션과 구글시트 자동화 템플릿 묶음.',
@@ -3087,7 +3087,7 @@ INSERT INTO resource_downloads (
   (
     1,
     1,
-    'rdown111-1111-1111-1111-111111111111',
+    'd34768a8-3db0-4746-a512-5740246cf7ce',
     'https://cdn.ddeundeun.ai/resources/starter-kit.zip',
     'zip',
     '12MB',
@@ -3099,7 +3099,7 @@ INSERT INTO resource_downloads (
   (
     2,
     2,
-    'rdown222-2222-2222-2222-222222222222',
+    'c7ec86e6-80df-42c9-8ab3-db14342d7ddb',
     'https://cdn.ddeundeun.ai/resources/newsletter-playbook.pdf',
     'pdf',
     '4MB',
@@ -3111,7 +3111,7 @@ INSERT INTO resource_downloads (
   (
     3,
     3,
-    'rdown333-3333-3333-3333-333333333333',
+    'c8bb8a99-8f15-44b4-9d70-f6ef062b8040',
     'https://cdn.ddeundeun.ai/resources/case-study-pack.pdf',
     'pdf',
     '6MB',
@@ -3123,7 +3123,7 @@ INSERT INTO resource_downloads (
   (
     4,
     4,
-    'rdown444-4444-4444-4444-444444444444',
+    '7465caa8-6e8a-4f0f-9e23-61f81d2cc720',
     'https://cdn.ddeundeun.ai/resources/governance-kit.zip',
     'zip',
     '18MB',
@@ -3135,7 +3135,7 @@ INSERT INTO resource_downloads (
   (
     5,
     5,
-    'rdown555-5555-5555-5555-555555555555',
+    'a6bc1962-835c-4de9-a979-38339aeee816',
     'https://cdn.ddeundeun.ai/resources/creator-automation.zip',
     'zip',
     '22MB',
@@ -3161,7 +3161,7 @@ INSERT INTO resource_faqs (
   (
     1,
     1,
-    'rfq11111-1111-1111-1111-111111111111',
+    '89481d50-8daf-4cf2-a041-8c14b16b7c96',
     '자료는 어떻게 업데이트되나요?',
     '자료가 업데이트되면 뉴스레터를 통해 바로 안내해 드립니다.',
     1,
@@ -3172,7 +3172,7 @@ INSERT INTO resource_faqs (
   (
     2,
     1,
-    'rfq22222-2222-2222-2222-222222222222',
+    '03988240-5347-4da4-b67b-2f01e2cb7a2e',
     '상업적 사용이 가능한가요?',
     '템플릿은 자유롭게 수정하여 사용할 수 있습니다.',
     2,
@@ -3183,7 +3183,7 @@ INSERT INTO resource_faqs (
   (
     3,
     2,
-    'rfq33333-3333-3333-3333-333333333333',
+    '9059018b-ebb0-40a9-9abf-7e8f4871ab2b',
     '뉴스레터는 언제 발송되나요?',
     '매주 화요일 오전 9시에 발송됩니다.',
     1,
@@ -3194,7 +3194,7 @@ INSERT INTO resource_faqs (
   (
     4,
     3,
-    'rfq44444-4444-4444-4444-444444444444',
+    'c3741856-1771-48ea-acdd-39702a5c4b7c',
     '사례 자료는 어떤 형식인가요?',
     'PDF와 노션 링크로 제공됩니다.',
     1,
@@ -3205,7 +3205,7 @@ INSERT INTO resource_faqs (
   (
     5,
     4,
-    'rfq55555-5555-5555-5555-555555555555',
+    'dc7d1926-b0ed-4ebe-a82c-943f609432e4',
     '거버넌스 킷은 무료인가요?',
     '엔터프라이즈 상담 후 제공됩니다.',
     1,
@@ -3231,7 +3231,7 @@ INSERT INTO settings_sections (
 ) VALUES
   (
     1,
-    'setc1111-1111-1111-1111-111111111111',
+    '0f2443bd-3645-40a9-b9c9-074601778511',
     'profile-security',
     '프로필 & 보안',
     '계정 정보와 보안 설정을 관리하세요.',
@@ -3244,7 +3244,7 @@ INSERT INTO settings_sections (
   ),
   (
     2,
-    'setc2222-2222-2222-2222-222222222222',
+    '0cf9b5df-5d39-4ec5-9498-7f62bc688f67',
     'billing-plan',
     '결제 & 플랜',
     '플랜과 결제 수단을 관리하세요.',
@@ -3257,7 +3257,7 @@ INSERT INTO settings_sections (
   ),
   (
     3,
-    'setc3333-3333-3333-3333-333333333333',
+    '20c6e85e-d175-48d7-8557-9964f1924873',
     'notifications',
     '알림 설정',
     '요약 리포트와 제품 소식을 받아보세요.',
@@ -3270,7 +3270,7 @@ INSERT INTO settings_sections (
   ),
   (
     4,
-    'setc4444-4444-4444-4444-444444444444',
+    '275989c3-4867-4c0f-8feb-4dee8457b503',
     'integrations',
     '연동',
     '외부 서비스와 연동을 설정하세요.',
@@ -3283,7 +3283,7 @@ INSERT INTO settings_sections (
   ),
   (
     5,
-    'setc5555-5555-5555-5555-555555555555',
+    '78fbe2bc-cab6-4708-8f6d-463cda16a860',
     'workspace',
     '워크스페이스',
     '팀과 워크스페이스를 관리하세요.',
@@ -3314,7 +3314,7 @@ INSERT INTO settings_tiles (
   (
     1,
     1,
-    'sett1111-1111-1111-1111-111111111111',
+    'd0630d2b-d290-4e83-94c1-efc289f596e1',
     '프로필 수정',
     '프로필 사진, 소개, 역할을 변경합니다.',
     '프로필 편집',
@@ -3328,7 +3328,7 @@ INSERT INTO settings_tiles (
   (
     2,
     2,
-    'sett2222-2222-2222-2222-222222222222',
+    '70b357a1-44c1-4bd5-aff6-377ed8abc766',
     '결제 수단 관리',
     '기본 결제 수단과 자동 충전 설정을 변경합니다.',
     '결제 수단 변경',
@@ -3342,7 +3342,7 @@ INSERT INTO settings_tiles (
   (
     3,
     3,
-    'sett3333-3333-3333-3333-333333333333',
+    '01e8d487-3045-4fd0-8ac2-200e0051fae0',
     '요약 리포트 받기',
     '주간 요약 리포트를 메일로 받아보세요.',
     '알림 관리',
@@ -3356,7 +3356,7 @@ INSERT INTO settings_tiles (
   (
     4,
     4,
-    'sett4444-4444-4444-4444-444444444444',
+    'fa92f439-f960-4f09-973a-16f8f551b793',
     '연동 관리',
     'Zapier, Make 등 외부 연동을 설정합니다.',
     '연동 설정',
@@ -3370,7 +3370,7 @@ INSERT INTO settings_tiles (
   (
     5,
     5,
-    'sett5555-5555-5555-5555-555555555555',
+    '5c3ae039-2809-432a-9f1e-270d3bda624e',
     '워크스페이스 좌석 관리',
     '워크스페이스 좌석을 추가하거나 제거합니다.',
     '좌석 관리',
@@ -3463,7 +3463,7 @@ INSERT INTO shorts_prompts (
 ) VALUES
   (
     1,
-    'spr11111-1111-1111-1111-111111111111',
+    '692d4524-e767-41ed-a65c-a83e90b262ba',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     '시니어 향수 사용 후기',
     '시니어 고객 후기를 바탕으로 한 스크립트를 생성합니다.',
@@ -3477,7 +3477,7 @@ INSERT INTO shorts_prompts (
   ),
   (
     2,
-    'spr22222-2222-2222-2222-222222222222',
+    '4cf85426-f196-4363-9753-30f0e911e9b8',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     '향수 제조 비하인드',
     '향수 제조 과정을 소개하는 숏폼 아이디어.',
@@ -3491,7 +3491,7 @@ INSERT INTO shorts_prompts (
   ),
   (
     3,
-    'spr33333-3333-3333-3333-333333333333',
+    '0b88919a-e87f-4a37-819d-172cbc5eafff',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     '향수 히스토리 퀴즈',
     '퀴즈 형식으로 참여를 유도합니다.',
@@ -3505,7 +3505,7 @@ INSERT INTO shorts_prompts (
   ),
   (
     4,
-    'spr44444-4444-4444-4444-444444444444',
+    'd294648f-c3f3-4169-b7bd-35cdfc25dbf9',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     '선물 추천 가이드',
     '향수를 선물하려는 고객에게 쇼츠로 추천합니다.',
@@ -3519,7 +3519,7 @@ INSERT INTO shorts_prompts (
   ),
   (
     5,
-    'spr55555-5555-5555-5555-555555555555',
+    'aede806e-cc4c-4093-93d0-cd74b4220e49',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     '코칭 성공 스토리',
     '코칭을 통해 성과를 낸 고객 스토리를 소개합니다.',
@@ -3550,7 +3550,7 @@ INSERT INTO shorts_generation_requests (
 ) VALUES
   (
     1,
-    'sreq1111-1111-1111-1111-111111111111',
+    '178e1d06-dc43-4cd6-b677-6db90e731f34',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     1,
     '시니어 고객의 일상을 이야기하는 30초 숏폼',
@@ -3564,7 +3564,7 @@ INSERT INTO shorts_generation_requests (
   ),
   (
     2,
-    'sreq2222-2222-2222-2222-222222222222',
+    '54ccae5c-9967-48a0-baa4-dc243b509812',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     2,
     '향수 제조 비하인드 45초 버전',
@@ -3578,7 +3578,7 @@ INSERT INTO shorts_generation_requests (
   ),
   (
     3,
-    'sreq3333-3333-3333-3333-333333333333',
+    '92c11e5c-fdda-4c7e-8649-3447982d2e47',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     3,
     '웰니스 루틴 + 향수 활용 60초 버전',
@@ -3592,7 +3592,7 @@ INSERT INTO shorts_generation_requests (
   ),
   (
     4,
-    'sreq4444-4444-4444-4444-444444444444',
+    '10879588-4557-4bcf-9067-c0a57fd58e1f',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     4,
     '홀리데이 선물 추천 20초 버전',
@@ -3606,7 +3606,7 @@ INSERT INTO shorts_generation_requests (
   ),
   (
     5,
-    'sreq5555-5555-5555-5555-555555555555',
+    '6fa8e8cf-29b4-4b3d-af4a-14b7da2053a5',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     5,
     '구독자 스토리텔링 35초 버전',
@@ -3633,7 +3633,7 @@ INSERT INTO shorts_faqs (
 ) VALUES
   (
     1,
-    'sfq11111-1111-1111-1111-111111111111',
+    '686c522f-6ce3-4f1d-bb41-7aab48f72815',
     '생성된 숏폼은 어디에서 확인하나요?',
     '생성 요청 페이지 하단에서 미리보기와 다운로드 링크를 확인할 수 있습니다.',
     1,
@@ -3643,7 +3643,7 @@ INSERT INTO shorts_faqs (
   ),
   (
     2,
-    'sfq22222-2222-2222-2222-222222222222',
+    'fd7fbc98-849e-4e37-b647-40d41073e871',
     'AI 성우는 몇 가지가 지원되나요?',
     '현재 12가지 목소리 프로필을 지원하며 지속적으로 확장되고 있습니다.',
     2,
@@ -3653,7 +3653,7 @@ INSERT INTO shorts_faqs (
   ),
   (
     3,
-    'sfq33333-3333-3333-3333-333333333333',
+    '2cccf812-c37a-4459-907b-6ef57534bc65',
     '생성 실패 시 어떻게 하나요?',
     '실패 사유와 함께 자동 재시도가 진행되며, 필요 시 수동 재생성 버튼을 제공해요.',
     3,
@@ -3663,7 +3663,7 @@ INSERT INTO shorts_faqs (
   ),
   (
     4,
-    'sfq44444-4444-4444-4444-444444444444',
+    '5a201cb6-6053-4997-8734-d453a47bc90e',
     '템플릿을 수정할 수 있나요?',
     '네, 생성된 결과물은 프로젝트 워크스페이스에서 자유롭게 편집할 수 있어요.',
     4,
@@ -3673,7 +3673,7 @@ INSERT INTO shorts_faqs (
   ),
   (
     5,
-    'sfq55555-5555-5555-5555-555555555555',
+    '909110c6-6a37-4abf-8b09-f1c531569c4b',
     '라이선스는 어떻게 되나요?',
     '생성된 숏폼은 상업적 사용이 가능하며, 오디오 라이선스도 포함돼요.',
     5,
@@ -3697,7 +3697,7 @@ INSERT INTO usecase_categories (
 ) VALUES
   (
     1,
-    'ucat1111-1111-1111-1111-111111111111',
+    'ff7d5e32-b6d7-48ef-ab15-cc67869c0f19',
     'enterprise',
     '엔터프라이즈',
     '대기업 및 기관 고객 사례',
@@ -3708,7 +3708,7 @@ INSERT INTO usecase_categories (
   ),
   (
     2,
-    'ucat2222-2222-2222-2222-222222222222',
+    'ad695009-de8b-4026-aa60-bf0080052033',
     'education',
     '교육',
     '교육기관 및 강의 사례',
@@ -3719,7 +3719,7 @@ INSERT INTO usecase_categories (
   ),
   (
     3,
-    'ucat3333-3333-3333-3333-333333333333',
+    'd2c1bf33-8974-44cc-b0f3-299ccbe4d953',
     'commerce',
     '커머스',
     '이커머스 브랜드 성공 사례',
@@ -3730,7 +3730,7 @@ INSERT INTO usecase_categories (
   ),
   (
     4,
-    'ucat4444-4444-4444-4444-444444444444',
+    '41585be1-e576-458c-a93b-76389d069651',
     'creator',
     '크리에이터',
     '개인 크리에이터 및 부업 사례',
@@ -3741,7 +3741,7 @@ INSERT INTO usecase_categories (
   ),
   (
     5,
-    'ucat5555-5555-5555-5555-555555555555',
+    'cbfb0585-02b0-41c7-a1fc-a78d07515f71',
     'nonprofit',
     '비영리',
     '비영리 및 공익 캠페인 사례',
@@ -3858,7 +3858,7 @@ INSERT INTO usecase_metrics (
   (
     1,
     1,
-    'umet1111-1111-1111-1111-111111111111',
+    '1f29d9c5-ea25-4cc5-9a37-e868482e911d',
     '조회수',
     '3.4M',
     NULL,
@@ -3870,7 +3870,7 @@ INSERT INTO usecase_metrics (
   (
     2,
     2,
-    'umet2222-2222-2222-2222-222222222222',
+    '39dc3e0a-a451-4641-83be-3d794563f5b4',
     '참여율',
     '48%',
     NULL,
@@ -3882,7 +3882,7 @@ INSERT INTO usecase_metrics (
   (
     3,
     3,
-    'umet3333-3333-3333-3333-333333333333',
+    '519dacf1-6d3a-4de1-82c5-d7ebc54c6543',
     '구독 전환율',
     '12%',
     NULL,
@@ -3894,7 +3894,7 @@ INSERT INTO usecase_metrics (
   (
     4,
     4,
-    'umet4444-4444-4444-4444-444444444444',
+    '25f309a4-a60f-4a40-a1f3-628c8b455efb',
     '코칭 세션 수',
     '24회',
     NULL,
@@ -3906,7 +3906,7 @@ INSERT INTO usecase_metrics (
   (
     5,
     5,
-    'umet5555-5555-5555-5555-555555555555',
+    'aa7b0610-2842-429c-9ec9-88e854cd0d51',
     '기부 전환율',
     '25%',
     NULL,
@@ -3934,7 +3934,7 @@ INSERT INTO usecase_testimonials (
   (
     1,
     1,
-    'ute11111-1111-1111-1111-111111111111',
+    '0dbf39e5-4c62-4a16-b698-b08e70f94784',
     '든든AI 덕분에 한 달 만에 운용 효율을 두 배 이상 끌어올렸습니다.',
     '김하늘',
     '마케팅 총괄',
@@ -3947,7 +3947,7 @@ INSERT INTO usecase_testimonials (
   (
     2,
     2,
-    'ute22222-2222-2222-2222-222222222222',
+    '4b4b2e8d-0d2e-4e43-957f-a545184c4bf0',
     '학생들이 콘텐츠에 더 깊이 몰입하게 되었습니다.',
     '박소연',
     '교육기획 팀장',
@@ -3960,7 +3960,7 @@ INSERT INTO usecase_testimonials (
   (
     3,
     3,
-    'ute33333-3333-3333-3333-333333333333',
+    '45f8ee38-0268-4305-9c46-d84c8757577e',
     '쇼츠 하나만으로 매출 전환이 일어나기 시작했어요.',
     '정민우',
     '이커머스 대표',
@@ -3973,7 +3973,7 @@ INSERT INTO usecase_testimonials (
   (
     4,
     4,
-    'ute44444-4444-4444-4444-444444444444',
+    '3e8dd8cd-91f9-4192-861a-eb419a1688e2',
     '전담 코치와 함께 콘텐츠를 만드는 과정이 즐거웠습니다.',
     '이은재',
     '시니어 크리에이터',
@@ -3986,7 +3986,7 @@ INSERT INTO usecase_testimonials (
   (
     5,
     5,
-    'ute55555-5555-5555-5555-555555555555',
+    '19bbf944-873e-4415-8ac2-fa5c86956d22',
     '기부 스토리를 자동으로 전달할 수 있게 되어 감사했습니다.',
     '홍지원',
     '비영리 단체 대표',
@@ -4012,7 +4012,7 @@ INSERT INTO message_threads (
 ) VALUES
   (
     1,
-    'mthr1111-1111-1111-1111-111111111111',
+    '20041bfd-e93a-4863-93ea-ee9a784c6584',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     '시니어 코치 매칭 문의',
     'open',
@@ -4023,7 +4023,7 @@ INSERT INTO message_threads (
   ),
   (
     2,
-    'mthr2222-2222-2222-2222-222222222222',
+    'cfc139ce-e8fa-4d3d-8139-46ef2362c50b',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     '환불 정책 확인',
     'pending',
@@ -4034,7 +4034,7 @@ INSERT INTO message_threads (
   ),
   (
     3,
-    'mthr3333-3333-3333-3333-333333333333',
+    'ca822b66-6bf4-43db-a393-01aac071d6e5',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     '엔터프라이즈 도입 상담',
     'resolved',
@@ -4045,7 +4045,7 @@ INSERT INTO message_threads (
   ),
   (
     4,
-    'mthr4444-4444-4444-4444-444444444444',
+    '340e14af-397d-49c2-baa2-ecf1b96b971b',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     'AI 성우 품질 문의',
     'open',
@@ -4056,7 +4056,7 @@ INSERT INTO message_threads (
   ),
   (
     5,
-    'mthr5555-5555-5555-5555-555555555555',
+    '91d007f0-5781-46d3-bab0-e174a348893e',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
     '기술 지원 요청',
     'open',
@@ -4082,7 +4082,7 @@ INSERT INTO message_entries (
 ) VALUES
   (
     1,
-    'ment1111-1111-1111-1111-111111111111',
+    'b9c7b8e2-8079-41f8-acae-3941c6048fbd',
     1,
     'user',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
@@ -4094,7 +4094,7 @@ INSERT INTO message_entries (
   ),
   (
     2,
-    'ment2222-2222-2222-2222-222222222222',
+    'a5342d72-2948-4112-9824-cf89639ae703',
     2,
     'user',
     '1f75d123-89ab-4215-aab6-a48e1cf2f79a',
@@ -4106,7 +4106,7 @@ INSERT INTO message_entries (
   ),
   (
     3,
-    'ment3333-3333-3333-3333-333333333333',
+    'b8a7ee59-d8a9-4e36-a81d-00dc8fbcc607',
     3,
     'assistant',
     NULL,
@@ -4118,7 +4118,7 @@ INSERT INTO message_entries (
   ),
   (
     4,
-    'ment4444-4444-4444-4444-444444444444',
+    'd84a84e4-ac0b-435d-b42d-950b7dc12e47',
     4,
     'assistant',
     NULL,
@@ -4130,7 +4130,7 @@ INSERT INTO message_entries (
   ),
   (
     5,
-    'ment5555-5555-5555-5555-555555555555',
+    '39b15b18-784e-4af5-a577-3b922637a36f',
     5,
     'assistant',
     NULL,

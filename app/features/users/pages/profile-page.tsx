@@ -1,9 +1,4 @@
-import {
-  json,
-  type LoaderFunctionArgs,
-  type MetaFunction,
-  useLoaderData,
-} from "react-router";
+import { type MetaFunction } from "react-router";
 
 import { Typography } from "~/common/components/typography";
 import {
@@ -13,16 +8,61 @@ import {
   WorkspacePreferencesCard,
   type ProfilePlanActivityStat,
 } from "~/features/users/components/profile-sections";
-import { DEFAULT_PROFILE_ID } from "~/features/users/services/constants";
-import {
-  type ProfileSettingsData,
-  getProfileSettingsData,
-} from "~/features/users/services/profile-settings-service";
+import { type ProfileSettingsData } from "~/features/users/services/profile-settings-service";
 
-export async function loader({}: LoaderFunctionArgs) {
-  const data = await getProfileSettingsData(DEFAULT_PROFILE_ID);
-  return json(data satisfies ProfileSettingsData);
-}
+const FALLBACK_PROFILE_DATA: ProfileSettingsData = {
+  profileSummary: {
+    name: "든든AI 사용자",
+    role: "Creator",
+    company: "든든 퍼퓸 스튜디오",
+    email: "hello@ddeundeun.ai",
+    timezone: "Asia/Seoul (GMT+09:00)",
+    joinedAt: "가입일 정보가 곧 표시될 예정이에요.",
+    bio: "프로필 정보를 설정하면 코칭과 자동화 추천이 더 정확해져요.",
+    avatarUrl:
+      "https://api.dicebear.com/7.x/initials/svg?seed=%EB%93%A0%EB%93%A0AI",
+  },
+  metrics: [
+    {
+      label: "최근 30일 신규 프로젝트",
+      value: "0",
+      helper: "첫 프로젝트를 만들면 여기에서 활동량을 볼 수 있어요.",
+    },
+    {
+      label: "활성 프리셋 연결",
+      value: "0",
+      helper: "프리셋을 연결하면 자동화 추천이 강화돼요.",
+    },
+    {
+      label: "월간 조회수",
+      value: "0",
+      helper: "프로젝트를 배포하면 성과 지표가 수집돼요.",
+    },
+  ],
+  workspacePreferences: [
+    {
+      title: "알림 채널 연결",
+      description: "이메일과 Slack을 연결해 자동화 알림을 받아보세요.",
+      ctaLabel: "연결 예정",
+    },
+    {
+      title: "프로젝트 협업 초대",
+      description: "팀원을 초대해 프로젝트를 함께 관리할 수 있어요.",
+      ctaLabel: "준비 중",
+    },
+  ],
+  plan: {
+    planName: null,
+    priceLabel: null,
+    renewalDate: null,
+    renewalDateLabel: null,
+    renewalNote: "청구 일정은 플랜이 활성화되면 표시돼요.",
+    usageLabel: "아직 사용량 데이터가 없어요.",
+    usageHighlightLabel: null,
+    benefits: [],
+  },
+  projects: [],
+};
 
 export const meta: MetaFunction = () => {
   return [
@@ -37,25 +77,20 @@ export const meta: MetaFunction = () => {
 };
 
 export default function ProfilePage() {
-  const data = useLoaderData<typeof loader>();
+  const data = FALLBACK_PROFILE_DATA;
   const avatarFallback =
-    (data.profileSummary.name ?? "")
-      .replace(/\s/g, "")
-      .slice(0, 2) || "DU";
+    (data.profileSummary.name ?? "").replace(/\s/g, "").slice(0, 2) || "DU";
 
   const planTitle = data.plan.planName
     ? `현재 플랜 · ${data.plan.planName}`
     : "현재 플랜";
   const planDescription = (() => {
     const parts = [
-      data.plan.benefits.length > 0
-        ? data.plan.benefits.join(", ")
-        : undefined,
+      data.plan.benefits.length > 0 ? data.plan.benefits.join(", ") : undefined,
       data.plan.usageLabel ?? undefined,
     ].filter(Boolean);
     return (
-      parts.join(" · ") ||
-      "플랜 혜택을 설정하면 더 많은 추천을 받을 수 있어요."
+      parts.join(" · ") || "플랜 혜택을 설정하면 더 많은 추천을 받을 수 있어요."
     );
   })();
   const nextBillingDate =
@@ -109,7 +144,6 @@ export default function ProfilePage() {
                 nextBillingPrefix="다음 청구일은"
                 nextBillingDate={nextBillingDate}
                 nextBillingSuffix=" 입니다. 플랜을 변경하면 즉시 과금 정책이 업데이트돼요."
-                usageHighlightLabel={data.plan.usageHighlightLabel ?? undefined}
               />
 
               <WorkspacePreferencesCard
@@ -127,7 +161,10 @@ export default function ProfilePage() {
           <ProfileProjectsSection
             heading="내가 제작한 프로젝트"
             description="최근 30일 동안 제작하거나 업데이트한 프로젝트예요. 성과 요약과 프리셋 연결 상태를 한눈에 확인할 수 있어요."
-            projects={data.projects}
+            projects={data.projects.map((project) => ({
+              ...project,
+              thumbnail: project.thumbnail ?? undefined,
+            }))}
             createProjectHref="/my/dashboard/project/create"
             createProjectTitle="새 프로젝트 시작하기"
             createProjectDescription="수익 보장형 프리셋으로 빠르게 시작하세요."
@@ -138,5 +175,3 @@ export default function ProfilePage() {
     </section>
   );
 }
-
-
