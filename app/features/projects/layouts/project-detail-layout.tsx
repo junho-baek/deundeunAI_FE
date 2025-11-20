@@ -15,6 +15,7 @@ import ChatInitForm, {
 import ChatConfirmCard from "~/features/projects/components/chat-confirm-card";
 import { Typography } from "~/common/components/typography";
 import { Separator } from "~/common/components/ui/separator";
+import { getProjectByProjectId } from "~/features/projects/queries";
 
 type MessageAttachment = { name: string; size?: number };
 type Message = {
@@ -60,6 +61,7 @@ const ProjectDetailContext =
 
 type LoaderData = {
   initialChatPayload: ChatFormData | null;
+  project: Awaited<ReturnType<typeof getProjectByProjectId>> | null;
 };
 
 function extractInitialChatPayload(url: URL): ChatFormData | null {
@@ -92,18 +94,32 @@ function extractInitialChatPayload(url: URL): ChatFormData | null {
 
 export const loader = async ({
   request,
+  params,
 }: LoaderFunctionArgs): Promise<LoaderData> => {
   const url = new URL(request.url);
+  const projectId = params.projectId;
 
-  // project-create-page.tsx의 loader와 동일한 방식으로 쿼리 파라미터 처리
+  // 쿼리 파라미터 처리
   const keyword = url.searchParams.get("keyword");
   const aspectRatio = url.searchParams.get("aspectRatio");
-
-  // 쿼리 파라미터가 있는 경우에만 initialChatPayload 생성
   const initialChatPayload =
     keyword && keyword.trim() ? extractInitialChatPayload(url) : null;
 
-  return { initialChatPayload };
+  // 프로젝트 데이터 조회
+  let project = null;
+  if (projectId && projectId !== "create") {
+    try {
+      project = await getProjectByProjectId(projectId);
+    } catch (error) {
+      console.error("프로젝트 로드 실패:", error);
+      // 에러가 발생해도 UI는 계속 렌더링
+    }
+  }
+
+  return {
+    initialChatPayload,
+    project,
+  };
 };
 
 export const clientLoader = ({
@@ -112,16 +128,14 @@ export const clientLoader = ({
   void context;
 
   if (typeof window === "undefined") {
-    return { initialChatPayload: null };
+    return { initialChatPayload: null, project: null };
   }
 
   const currentUrl = new URL(window.location.href);
 
-  // project-create-page.tsx의 loader와 동일한 방식으로 쿼리 파라미터 처리
+  // 쿼리 파라미터 처리
   const keyword = currentUrl.searchParams.get("keyword");
   const aspectRatio = currentUrl.searchParams.get("aspectRatio");
-
-  // 쿼리 파라미터가 있는 경우에만 initialChatPayload 생성
   const initialChatPayload =
     keyword && keyword.trim() ? extractInitialChatPayload(currentUrl) : null;
 
@@ -131,7 +145,7 @@ export const clientLoader = ({
     window.history.replaceState(window.history.state, "", currentUrl.href);
   }
 
-  return { initialChatPayload };
+  return { initialChatPayload, project: null };
 };
 
 function createConversationEntries({

@@ -1,4 +1,4 @@
-import { type MetaFunction } from "react-router";
+import { type MetaFunction, useLoaderData } from "react-router";
 
 import { Typography } from "~/common/components/typography";
 import {
@@ -8,7 +8,10 @@ import {
   WorkspacePreferencesCard,
   type ProfilePlanActivityStat,
 } from "~/features/users/components/profile-sections";
-import { type ProfileSettingsData } from "~/features/users/services/profile-settings-service";
+import {
+  getProfileSettingsData,
+  type ProfileSettingsData,
+} from "~/features/users/services/profile-settings-service";
 
 const FALLBACK_PROFILE_DATA: ProfileSettingsData = {
   profileSummary: {
@@ -76,8 +79,18 @@ export const meta: MetaFunction = () => {
   ];
 };
 
+export async function loader() {
+  try {
+    const data = await getProfileSettingsData();
+    return { data };
+  } catch (error) {
+    console.error("프로필 데이터 로딩 실패:", error);
+    return { data: FALLBACK_PROFILE_DATA };
+  }
+}
+
 export default function ProfilePage() {
-  const data = FALLBACK_PROFILE_DATA;
+  const { data } = useLoaderData<typeof loader>();
   const avatarFallback =
     (data.profileSummary.name ?? "").replace(/\s/g, "").slice(0, 2) || "DU";
 

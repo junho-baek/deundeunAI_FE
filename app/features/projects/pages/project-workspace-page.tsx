@@ -1,5 +1,10 @@
 import * as React from "react";
-import { type MetaFunction } from "react-router";
+import {
+  type LoaderFunctionArgs,
+  type MetaFunction,
+  useLoaderData,
+  useParams,
+} from "react-router";
 
 import { ProjectAccordion } from "~/features/projects/components/project-accordion";
 import ProjectPrd from "~/features/projects/components/project-prd";
@@ -9,6 +14,7 @@ import ProjectImageSelect from "~/features/projects/components/project-image-sel
 import ProjectVideoSelect from "~/features/projects/components/project-video-select";
 import ProjectFinalVideo from "~/features/projects/components/project-final-video";
 import { useProjectDetail } from "~/features/projects/layouts/project-detail-layout";
+import { getProjectWorkspaceData } from "~/features/projects/queries";
 
 export const meta: MetaFunction = () => {
   return [
@@ -23,7 +29,35 @@ export const meta: MetaFunction = () => {
   ];
 };
 
+/**
+ * 프로젝트 워크스페이스 데이터 로더
+ * 프로젝트의 문서, 미디어 자산, 오디오 세그먼트 등을 조회합니다
+ */
+export async function loader({ params }: LoaderFunctionArgs) {
+  const projectId = params.projectId;
+
+  if (!projectId || projectId === "create") {
+    return {
+      workspaceData: null,
+    };
+  }
+
+  try {
+    const workspaceData = await getProjectWorkspaceData(projectId);
+    return {
+      workspaceData,
+    };
+  } catch (error) {
+    console.error("워크스페이스 데이터 로드 실패:", error);
+    return {
+      workspaceData: null,
+    };
+  }
+}
+
 export default function ProjectWorkspacePage() {
+  const { workspaceData } = useLoaderData<typeof loader>();
+  const { projectId } = useParams();
   const {
     imageTimelines,
     selectedImages,
@@ -33,12 +67,26 @@ export default function ProjectWorkspacePage() {
     toggleSelectVideo,
     loading,
     done,
-    narrationSegments,
+    narrationSegments: defaultNarrationSegments,
   } = useProjectDetail();
 
-  const projectBriefMd = React.useMemo(
-    () =>
-      `# 영상 프로젝트 기획서
+  // 데이터베이스에서 가져온 문서 데이터 사용
+  const briefDocument = React.useMemo(() => {
+    if (!workspaceData?.documents) return null;
+    return workspaceData.documents.find((doc) => doc.type === "brief");
+  }, [workspaceData]);
+
+  const scriptDocument = React.useMemo(() => {
+    if (!workspaceData?.documents) return null;
+    return workspaceData.documents.find((doc) => doc.type === "script");
+  }, [workspaceData]);
+
+  // 기획서 마크다운 (데이터베이스에서 가져오거나 기본값)
+  const projectBriefMd = React.useMemo(() => {
+    if (briefDocument?.content) {
+      return briefDocument.content;
+    }
+    return `# 영상 프로젝트 기획서
 
 **목표**: 수익형 쇼츠 제작
 
@@ -52,9 +100,68 @@ export default function ProjectWorkspacePage() {
 
 ## 포맷
 - 비율 9:16
-- 길이 00:30`,
-    []
-  );
+- 길이 00:30`;
+  }, [briefDocument]);
+
+  // 대본 단락 (데이터베이스에서 가져오거나 기본값)
+  const scriptParagraphs = React.useMemo(() => {
+    if (scriptDocument?.content_json && Array.isArray(scriptDocument.content_json)) {
+      return scriptDocument.content_json;
+    }
+    if (scriptDocument?.content) {
+      // content를 단락으로 분리
+      return scriptDocument.content.split("\n\n").filter((p) => p.trim());
+    }
+    return [
+      "00:00 / 00:10 Lorem ipsum dolor sit amet consectetur adipisicing elit...",
+      "00:11 / 00:20 Lorem ipsum dolor sit amet consectetur adipisicing elit...",
+    ];
+  }, [scriptDocument]);
+
+  // 오디오 세그먼트 (데이터베이스에서 가져오거나 기본값)
+  const narrationSegmentsFromDb = React.useMemo(() => {
+    if (workspaceData?.audioSegments && workspaceData.audioSegments.length > 0) {
+      return workspaceData.audioSegments.map((seg: any, index: number) => ({
+        id: seg.id || index + 1,
+        label: seg.label || seg.timeline_label || `00:${index * 10}–00:${(index + 1) * 10}`,
+        src: seg.audio_url || `/audio/seg-${index + 1}.mp3`,
+      }));
+    }
+    return null; // 기본값은 useProjectDetail에서 가져옴
+  }, [workspaceData]);
+
+  // 데이터베이스에서 가져온 오디오 세그먼트가 있으면 사용, 없으면 기본값 사용
+  const narrationSegments =
+    narrationSegmentsFromDb || defaultNarrationSegments;
+
+  // 이미지 URL 목록 (미디어 자산에서 가져오기)
+  const imageUrls = React.useMemo(() => {
+    if (!workspaceData?.mediaAssets) return null;
+    return workspaceData.mediaAssets
+      .filter((asset: any) => asset.type === "image")
+      .map((asset: any) => asset.source_url || asset.preview_url)
+      .filter((url: string | null) => url);
+  }, [workspaceData]);
+
+  // 비디오 URL 목록 (미디어 자산에서 가져오기)
+  const videoUrls = React.useMemo(() => {
+    if (!workspaceData?.mediaAssets) return null;
+    return workspaceData.mediaAssets
+      .filter((asset: any) => asset.type === "video")
+      .map((asset: any) => asset.source_url || asset.preview_url)
+      .filter((url: string | null) => url);
+  }, [workspaceData]);
+
+  // 최종 비디오 URL
+  const finalVideoUrl = React.useMemo(() => {
+    if (workspaceData?.project?.video_url) {
+      return workspaceData.project.video_url;
+    }
+    if (videoUrls && videoUrls.length > 0) {
+      return videoUrls[0];
+    }
+    return null;
+  }, [workspaceData, videoUrls]);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
@@ -71,10 +178,7 @@ export default function ProjectWorkspacePage() {
           <ProjectScript
             value="step-2"
             title="step 2: 대본 작성"
-            paragraphs={[
-              "00:00 / 00:10 Lorem ipsum dolor sit amet consectetur adipisicing elit...",
-              "00:11 / 00:20 Lorem ipsum dolor sit amet consectetur adipisicing elit...",
-            ]}
+            paragraphs={scriptParagraphs}
             loading={loading.script}
             done={done.script}
           />
@@ -90,14 +194,18 @@ export default function ProjectWorkspacePage() {
           <ProjectImageSelect
             value="step-4"
             title="step 4: 생성된 이미지"
-            images={[
-              "https://github.com/openai.png",
-              "https://github.com/openai.png",
-              "https://github.com/openai.png",
-              "https://github.com/openai.png",
-              "https://github.com/openai.png",
-              "https://github.com/openai.png",
-            ]}
+            images={
+              imageUrls && imageUrls.length > 0
+                ? imageUrls
+                : [
+                    "https://github.com/openai.png",
+                    "https://github.com/openai.png",
+                    "https://github.com/openai.png",
+                    "https://github.com/openai.png",
+                    "https://github.com/openai.png",
+                    "https://github.com/openai.png",
+                  ]
+            }
             timelines={imageTimelines}
             selected={selectedImages}
             onToggle={toggleSelectImage}
@@ -108,14 +216,18 @@ export default function ProjectWorkspacePage() {
           <ProjectVideoSelect
             value="step-5"
             title="step 5: 생성된 영상 확인하기"
-            sources={[
-              "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-              "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-              "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-              "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-              "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-              "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-            ]}
+            sources={
+              videoUrls && videoUrls.length > 0
+                ? videoUrls
+                : [
+                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+                  ]
+            }
             timelines={videoTimelines}
             selected={selectedVideos}
             onToggle={toggleSelectVideo}
@@ -126,9 +238,14 @@ export default function ProjectWorkspacePage() {
           <ProjectFinalVideo
             value="step-6"
             title="step 6: 편집된 영상 확인 및 업로드"
-            videoSrc="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
-            headline="바이럴될만한 제목"
-            description="바이럴될만한 설명들"
+            videoSrc={
+              finalVideoUrl ||
+              "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+            }
+            headline={workspaceData?.project?.title || "바이럴될만한 제목"}
+            description={
+              workspaceData?.project?.description || "바이럴될만한 설명들"
+            }
             durationText="영상 길이 01:00"
             loading={loading.final}
             done={done.final}

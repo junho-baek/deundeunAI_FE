@@ -1,4 +1,5 @@
 import { CheckCircle2, Mail, MapPin, Pencil } from "lucide-react";
+import { Link } from "react-router";
 
 import { Button } from "~/common/components/ui/button";
 import {
@@ -92,10 +93,10 @@ export function ProfileSummaryCard({
             </dt>
             <dd className="font-medium text-foreground">{timezone}</dd>
           </div>
-            <div className="grid gap-1">
-              <dt className="text-muted-foreground">가입일</dt>
-              <dd className="font-medium text-foreground">{joinedAt}</dd>
-            </div>
+          <div className="grid gap-1">
+            <dt className="text-muted-foreground">가입일</dt>
+            <dd className="font-medium text-foreground">{joinedAt}</dd>
+          </div>
         </dl>
       </CardContent>
       <CardFooter className="flex flex-wrap gap-3">
@@ -141,7 +142,7 @@ export function ProfilePlanActivityCard({
   nextBillingPrefix,
   nextBillingDate,
   nextBillingSuffix,
-  billingLinkHref = "/my/settings/billing",
+  billingLinkHref = "/my/dashboard/settings/billing",
   billingLinkLabel = "플랜 세부 정보 보기",
   automationLabel = "AI 자동화 설정",
   className,
@@ -192,7 +193,7 @@ export function ProfilePlanActivityCard({
       </CardContent>
       <CardFooter className="flex flex-wrap gap-3">
         <Button size="sm" variant="outline" asChild>
-          <a href={billingLinkHref}>{billingLinkLabel}</a>
+          <Link to={billingLinkHref}>{billingLinkLabel}</Link>
         </Button>
         <Button size="sm" variant="ghost">
           {automationLabel}
@@ -288,10 +289,7 @@ export function ProfileProjectsSection({
       </div>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,220px))] justify-start gap-6">
         {projects.map((project, index) => (
-          <ProjectCard
-            key={`${project.id}-${index}`}
-            {...project}
-          />
+          <ProjectCard key={`${project.id}-${index}`} {...project} />
         ))}
         <ProjectCard
           key="create-project"
@@ -306,5 +304,3 @@ export function ProfileProjectsSection({
     </section>
   );
 }
-
-

@@ -97,12 +97,12 @@ export default [
             ),
           ]),
         ]),
-      ]),
 
-      // Settings
-      ...prefix("/settings", [
-        route("profile", "features/users/pages/profile-page.tsx"),
-        route("billing", "features/users/pages/billing-page.tsx"),
+        // Settings
+        ...prefix("/settings", [
+          route("profile", "features/users/pages/profile-page.tsx"),
+          route("billing", "features/users/pages/billing-page.tsx"),
+        ]),
       ]),
     ]),
   ]),

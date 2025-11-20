@@ -4,49 +4,147 @@ import {
   TrendingUp,
   BarChart3,
   GaugeCircle,
-  CheckCircle2,
 } from "lucide-react";
-import { type MetaFunction } from "react-router";
-
-import { Button } from "~/common/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/common/components/ui/card";
-import { Typography } from "~/common/components/typography";
+  type LoaderFunctionArgs,
+  type MetaFunction,
+  useLoaderData,
+} from "react-router";
+
 import ProjectCard from "~/features/projects/components/project-card";
+import {
+  getRecentProjects,
+  getProjectStats,
+} from "~/features/projects/queries";
+import {
+  getMetricWidgets,
+  getInsightsFromActivityFeed,
+} from "~/features/dashboard/queries";
+import { DashboardStatCard } from "~/features/dashboard/components/dashboard-stat-card";
+import { DashboardHero } from "~/features/dashboard/components/dashboard-hero";
+import { DashboardSection } from "~/features/dashboard/components/dashboard-section";
+import { DashboardInsightsCard } from "~/features/dashboard/components/dashboard-insights-card";
+import { DashboardProjectGrid } from "~/features/dashboard/components/dashboard-project-grid";
 
-const quickStats = [
-  {
-    id: "revenue",
-    label: "이번 주 예상 매출",
-    value: "₩4,380,000",
-    delta: "지난주 대비 +18%",
-    trend: "up" as const,
-    icon: TrendingUp,
+/**
+ * 위젯 데이터를 통계 카드 형식으로 변환
+ * 위젯이 없으면 기본 통계를 사용
+ */
+function getQuickStats(
+  stats: {
+    totalLikes: number;
+    totalViews: number;
+    averageCTR: number;
+    totalBudget: number;
+    projectCount: number;
   },
-  {
-    id: "conversion",
-    label: "주요 전환율",
-    value: "3.8%",
-    delta: "AI 프리셋 적용 후 +0.6pp",
-    trend: "up" as const,
-    icon: BarChart3,
-  },
-  {
-    id: "runtime",
-    label: "자동화 실행 시간 절감",
-    value: "42분",
-    delta: "예상 대비 -12분",
-    trend: "down" as const,
-    icon: GaugeCircle,
-  },
-] as const;
+  metricWidgets: Array<{
+    widget_id: string;
+    title: string;
+    config: Record<string, unknown>;
+    position: number;
+  }>
+) {
+  // 위젯이 있으면 위젯 데이터 사용, 없으면 기본 통계 사용
+  if (metricWidgets.length > 0) {
+    return metricWidgets
+      .sort((a, b) => a.position - b.position) // position 순서대로 정렬
+      .map((widget) => {
+        const config = widget.config as {
+          value?: string | number;
+          delta?: string;
+          trend?: "up" | "down" | "neutral";
+          icon?: string;
+          format?: "currency" | "percent" | "number";
+        };
 
-const presetProjects = [
+        // 아이콘 매핑
+        const iconMap: Record<string, typeof TrendingUp> = {
+          TrendingUp,
+          BarChart3,
+          GaugeCircle,
+        };
+        const Icon = iconMap[config.icon || "TrendingUp"] || TrendingUp;
+
+        // 트렌드 기본값
+        const trend = (config.trend || "neutral") as "up" | "down" | "neutral";
+
+        // 값 포맷팅
+        let value = config.value?.toString() || "0";
+        if (typeof config.value === "number") {
+          // format 설정에 따라 포맷팅
+          if (
+            config.format === "currency" ||
+            widget.title.includes("매출") ||
+            widget.title.includes("수익")
+          ) {
+            value = formatCurrency(config.value);
+          } else if (
+            config.format === "percent" ||
+            widget.title.includes("전환율") ||
+            widget.title.includes("CTR")
+          ) {
+            value = `${config.value}%`;
+          } else {
+            value = config.value.toLocaleString();
+          }
+        }
+
+        return {
+          id: widget.widget_id,
+          label: widget.title,
+          value,
+          delta: config.delta || "",
+          trend,
+          icon: Icon,
+        };
+      });
+  }
+
+  // 기본 통계 (위젯이 없을 때)
+  return [
+    {
+      id: "revenue",
+      label: "이번 주 예상 매출",
+      value: formatCurrency(stats.totalBudget || 4380000),
+      delta: "지난주 대비 +18%",
+      trend: "up" as const,
+      icon: TrendingUp,
+    },
+    {
+      id: "conversion",
+      label: "주요 전환율",
+      value:
+        stats.averageCTR > 0
+          ? `${(stats.averageCTR * 100).toFixed(1)}%`
+          : "3.8%",
+      delta: "AI 프리셋 적용 후 +0.6pp",
+      trend: "up" as const,
+      icon: BarChart3,
+    },
+    {
+      id: "runtime",
+      label: "자동화 실행 시간 절감",
+      value: "42분",
+      delta: "예상 대비 -12분",
+      trend: "down" as const,
+      icon: GaugeCircle,
+    },
+  ];
+}
+
+type PresetProject = {
+  id: string;
+  to: string;
+  title: string;
+  description: string;
+  likes: string;
+  ctr: string;
+  budget: string;
+  thumbnail: string;
+};
+
+const presetProjects: PresetProject[] = [
   {
     id: "profit-guarantee-collection",
     to: "/my/dashboard/project/create?preset=profit-guarantee",
@@ -77,42 +175,12 @@ const presetProjects = [
     budget: "High",
     thumbnail: "https://youtube.com/shorts/GoGJ_ckzxvY",
   },
-] as const;
+];
 
-const recentProjects = [
-  {
-    id: "1",
-    to: "/my/dashboard/project/1/analytics",
-    title: "Perfume Cinematic Brand Story",
-    description: "9:16 Video • TikTok",
-    likes: "33K",
-    ctr: "Top12%",
-    budget: "High",
-    thumbnail: "https://www.youtube.com/shorts/0Va3HYWMlz8",
-  },
-  {
-    id: "2",
-    to: "/my/dashboard/project/2/analytics",
-    title: "Perfume Aspirational Lifestyle Montage",
-    description: "인플루언서의 썰",
-    likes: "2K",
-    ctr: "Top7%",
-    budget: "High",
-    thumbnail: "https://youtube.com/shorts/GoGJ_ckzxvY?si=M4XLs-gXbSP7cGet",
-  },
-  {
-    id: "3",
-    to: "/my/dashboard/project/3/analytics",
-    title: "향수 신제품 UGC 리뷰",
-    description: "UGC | 구매 전환 최적화",
-    likes: "4.6K",
-    ctr: "Top9%",
-    budget: "Mid",
-    thumbnail: "https://www.tiktok.com/@mukguna/video/7566270993438608647",
-  },
-] as const;
+// recentProjects, insights는 loader에서 가져옴
 
-const insightBullets = [
+// 기본 인사이트 (활동 피드가 없을 때 사용)
+const defaultInsights = [
   {
     title: "AI가 자동으로 A/B 실험 캘린더를 생성해요",
     description:
@@ -128,7 +196,7 @@ const insightBullets = [
     description:
       "스토리보드, 스크립트, 배포 세팅까지 자동 완성되어 제작 시간을 평균 42분 단축했습니다.",
   },
-] as const;
+];
 
 export const meta: MetaFunction = () => {
   return [
@@ -142,96 +210,135 @@ export const meta: MetaFunction = () => {
   ];
 };
 
+/**
+ * 대시보드 데이터 로더
+ * 최근 프로젝트 목록, 통계 데이터, 위젯, 활동 피드를 조회합니다
+ */
+export async function loader({ request }: LoaderFunctionArgs) {
+  try {
+    // TODO: 실제 사용자 인증이 구현되면 ownerProfileId를 전달
+    // const session = await getSession(request);
+    // const ownerProfileId = session?.user?.id;
+    const ownerProfileId = undefined; // 임시로 undefined 사용
+
+    // 병렬로 데이터 조회
+    const [recentProjects, stats, metricWidgets, insights] = await Promise.all([
+      getRecentProjects(14, undefined, 10), // 최근 14일 내 업데이트된 프로젝트 최대 10개
+      getProjectStats(undefined),
+      getMetricWidgets(ownerProfileId), // 메트릭 위젯 조회
+      getInsightsFromActivityFeed(ownerProfileId, 3), // 활동 피드에서 인사이트 조회
+    ]);
+
+    return {
+      recentProjects: recentProjects ?? [],
+      stats,
+      metricWidgets: metricWidgets ?? [],
+      insights: insights ?? [],
+    };
+  } catch (error) {
+    console.error("대시보드 데이터 로드 실패:", error);
+    // 에러 발생 시 기본값 반환
+    return {
+      recentProjects: [],
+      stats: {
+        totalLikes: 0,
+        totalViews: 0,
+        averageCTR: 0,
+        totalBudget: 0,
+        projectCount: 0,
+      },
+      metricWidgets: [],
+      insights: [],
+    };
+  }
+}
+
+/**
+ * 숫자를 포맷팅하는 헬퍼 함수
+ * 예: 2000 -> "2K", 33000 -> "33K"
+ */
+function formatNumber(num: number): string {
+  if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}K`.replace(".0K", "K");
+  }
+  return num.toString();
+}
+
+/**
+ * CTR 값을 포맷팅하는 헬퍼 함수
+ */
+function formatCTR(ctr: number | null | undefined): string | undefined {
+  if (ctr === null || ctr === undefined) return undefined;
+  return `Top${Math.round(ctr * 100)}%`;
+}
+
+/**
+ * 예산 값을 포맷팅하는 헬퍼 함수
+ */
+function formatBudget(budget: number | null | undefined): string | undefined {
+  if (budget === null || budget === undefined) return undefined;
+  if (budget >= 100000) return "High";
+  if (budget >= 50000) return "Medium";
+  return "Low";
+}
+
+/**
+ * 금액을 포맷팅하는 헬퍼 함수
+ */
+function formatCurrency(amount: number): string {
+  return `₩${amount.toLocaleString("ko-KR")}`;
+}
+
 export default function DashboardPage() {
+  const { recentProjects, stats, metricWidgets, insights } =
+    useLoaderData<typeof loader>();
+
+  // 인사이트 데이터: 활동 피드에서 가져온 데이터가 있으면 사용, 없으면 기본값 사용
+  const displayInsights = insights.length > 0 ? insights : defaultInsights;
+
   return (
     <section className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden">
       <div className="flex-1 min-h-0 overflow-y-auto px-6 py-8 md:px-10">
         <div className="flex flex-col gap-8 pb-12">
-          <header className="relative overflow-hidden rounded-3xl border bg-linear-to-br from-primary/10 via-primary/5 to-transparent px-8 py-10 shadow-sm">
-            <div className="flex flex-col gap-4">
-              <span className="flex items-center gap-2 text-sm font-medium text-primary">
-                <Sparkles className="size-4" aria-hidden="true" />
-                든든AI 프리셋 추천
-              </span>
-              <Typography
-                as="h1"
-                variant="h3"
-                className="text-balance text-3xl font-semibold leading-tight text-foreground md:text-4xl"
-              >
-                대시보드에는 이미 검증된 프리셋이 준비되어 있어요
-              </Typography>
-              <Typography
-                as="p"
-                variant="lead"
-                className="max-w-2xl text-base text-muted-foreground md:text-lg"
-              >
-                최근 캠페인에서 가장 높은 수익을 만든 수익 보장형 콘텐츠
-                프리셋으로 오늘의 실험을 시작해보세요. 제작-배포-분석까지
-                자동으로 연결됩니다.
-              </Typography>
-              <div className="flex flex-wrap gap-3 pt-2">
-                <Button size="lg" className="gap-2" asChild>
-                  <a href="/my/dashboard/project/create?preset=profit-guarantee">
-                    수익 보장형 프리셋 바로 실행하기
-                    <ArrowRight className="size-4" aria-hidden="true" />
-                  </a>
-                </Button>
-                <Button size="lg" variant="outline" asChild>
-                  <a href="/my/dashboard/project">모든 프리셋 둘러보기</a>
-                </Button>
-              </div>
-            </div>
-          </header>
+          <DashboardHero
+            badge={{
+              icon: Sparkles,
+              text: "든든AI 프리셋 추천",
+            }}
+            title="대시보드에는 이미 검증된 프리셋이 준비되어 있어요"
+            description="최근 캠페인에서 가장 높은 수익을 만든 수익 보장형 콘텐츠 프리셋으로 오늘의 실험을 시작해보세요. 제작-배포-분석까지 자동으로 연결됩니다."
+            primaryAction={{
+              label: "수익 보장형 프리셋 바로 실행하기",
+              href: "/my/dashboard/project/create?preset=profit-guarantee",
+              icon: ArrowRight,
+            }}
+            secondaryAction={{
+              label: "모든 프리셋 둘러보기",
+              href: "/my/dashboard/project",
+            }}
+          />
 
           <div className="grid gap-4 md:grid-cols-3">
-            {quickStats.map((stat) => {
-              const Icon = stat.icon;
-              const trendColor =
-                stat.trend === "up"
-                  ? "text-emerald-600"
-                  : stat.trend === "down"
-                    ? "text-sky-600"
-                    : "text-muted-foreground";
-              return (
-                <Card key={stat.id}>
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardDescription>{stat.label}</CardDescription>
-                    <span className="rounded-full bg-muted p-2 text-primary">
-                      <Icon className="size-4" aria-hidden="true" />
-                    </span>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-1">
-                    <CardTitle className="text-2xl font-semibold">
-                      {stat.value}
-                    </CardTitle>
-                    <span className={`text-sm font-medium ${trendColor}`}>
-                      {stat.delta}
-                    </span>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {getQuickStats(stats, metricWidgets).map((stat) => (
+              <DashboardStatCard
+                key={stat.id}
+                label={stat.label}
+                value={stat.value}
+                delta={stat.delta}
+                trend={stat.trend}
+                icon={stat.icon}
+              />
+            ))}
           </div>
 
-          <section className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <Typography
-                as="h2"
-                variant="h3"
-                className="text-2xl font-semibold leading-tight text-foreground"
-              >
-                이번 주 추천 프리셋
-              </Typography>
-              <Typography
-                variant="muted"
-                className="max-w-xl text-sm md:text-base"
-              >
-                든든AI가 최근 실험 로그와 광고 효율 데이터를 분석해 가장 높은
-                ROAS를 만든 프리셋을 골랐어요.
-              </Typography>
-            </div>
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,220px))] justify-start gap-6">
-              {presetProjects.map((preset, index) => (
+          <DashboardSection
+            title="이번 주 추천 프리셋"
+            description="든든AI가 최근 실험 로그와 광고 효율 데이터를 분석해 가장 높은 ROAS를 만든 프리셋을 골랐어요."
+            className="flex flex-col gap-4"
+          >
+            <DashboardProjectGrid
+              items={presetProjects}
+              renderItem={(preset, index) => (
                 <ProjectCard
                   key={`${preset.id}-${index}`}
                   id={preset.id}
@@ -243,71 +350,39 @@ export default function DashboardPage() {
                   budget={preset.budget}
                   thumbnail={preset.thumbnail}
                 />
-              ))}
-            </div>
-          </section>
+              )}
+            />
+          </DashboardSection>
 
           <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="flex flex-col gap-4">
-              <Typography
-                as="h2"
-                variant="h3"
-                className="text-2xl font-semibold leading-tight text-foreground"
-              >
-                최근 실행한 프로젝트
-              </Typography>
-              <Typography
-                variant="muted"
-                className="max-w-2xl text-sm md:text-base"
-              >
-                본인이 직접 제작한 프로젝트 중 최근 14일 안에 업데이트된
-                캠페인이에요.
-              </Typography>
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,220px))] justify-start gap-6">
-                {recentProjects.map((project, index) => (
+            <DashboardSection
+              title="최근 실행한 프로젝트"
+              description="본인이 직접 제작한 프로젝트 중 최근 14일 안에 업데이트된 캠페인이에요."
+              className="flex flex-col gap-4"
+            >
+              <DashboardProjectGrid
+                items={recentProjects}
+                renderItem={(project) => (
                   <ProjectCard
-                    key={`${project.id}-${index}`}
-                    id={project.id}
-                    to={project.to}
+                    key={project.project_id}
+                    id={project.project_id}
+                    to={`/my/dashboard/project/${project.project_id}/analytics`}
                     title={project.title}
-                    description={project.description}
-                    likes={project.likes}
-                    ctr={project.ctr}
-                    budget={project.budget}
-                    thumbnail={project.thumbnail}
+                    description={project.description || undefined}
+                    likes={formatNumber(project.likes)}
+                    ctr={formatCTR(project.ctr)}
+                    budget={formatBudget(project.budget)}
+                    thumbnail={project.thumbnail || undefined}
                   />
-                ))}
-              </div>
-            </div>
-            <Card className="h-fit">
-              <CardHeader>
-                <CardTitle>AI 인사이트</CardTitle>
-                <CardDescription>
-                  수익 보장형 프리셋을 실행하면 바로 체감할 변화예요.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                {insightBullets.map((item, index) => (
-                  <div
-                    key={`${item.title}-${index}`}
-                    className="flex items-start gap-3"
-                  >
-                    <CheckCircle2
-                      className="mt-1 size-4 text-primary"
-                      aria-hidden="true"
-                    />
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {item.title}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {item.description}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+                )}
+                emptyMessage="최근 프로젝트가 없습니다. 새 프로젝트를 생성해보세요."
+              />
+            </DashboardSection>
+            <DashboardInsightsCard
+              title="AI 인사이트"
+              description="수익 보장형 프리셋을 실행하면 바로 체감할 변화예요."
+              items={displayInsights}
+            />
           </section>
         </div>
       </div>
