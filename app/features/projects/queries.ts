@@ -5,20 +5,29 @@
  */
 
 import client from "~/lib/supa-client";
+import { PAGE_SIZE } from "./constants";
+
+// DateTime 타입 (luxon이 없으면 Date 사용)
+type DateTimeLike = Date | { toISO: () => string };
 
 /**
- * 모든 프로젝트 목록 조회 (View 사용)
+ * 모든 프로젝트 목록 조회 (View 사용, 페이지네이션 지원)
  * @param ownerProfileId - 프로젝트 소유자 프로필 ID (선택사항, 필터링용)
+ * @param page - 페이지 번호 (기본값: 1)
  * @returns 프로젝트 목록 배열 (평탄화된 구조)
  */
-export async function getProjects(ownerProfileId?: string) {
-  let query = client.from("project_list_view").select("*");
+export async function getProjects(ownerProfileId?: string, page: number = 1) {
+  let query = client
+    .from("project_list_view")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
   if (ownerProfileId) {
     query = query.eq("owner_profile_id", ownerProfileId);
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await query;
 
   if (error) {
     console.error("프로젝트 조회 실패:", error);
@@ -26,6 +35,31 @@ export async function getProjects(ownerProfileId?: string) {
   }
 
   return data ?? [];
+}
+
+/**
+ * 프로젝트 총 페이지 수 계산
+ * @param ownerProfileId - 프로젝트 소유자 프로필 ID (선택사항)
+ * @returns 총 페이지 수
+ */
+export async function getProjectPages(ownerProfileId?: string) {
+  let query = client
+    .from("projects")
+    .select("project_id", { count: "exact", head: true });
+
+  if (ownerProfileId) {
+    query = query.eq("owner_profile_id", ownerProfileId);
+  }
+
+  const { count, error } = await query;
+
+  if (error) {
+    console.error("프로젝트 페이지 수 계산 실패:", error);
+    throw new Error(`페이지 수를 계산하는데 실패했습니다: ${error.message}`);
+  }
+
+  if (!count || count === 0) return 1;
+  return Math.ceil(count / PAGE_SIZE);
 }
 
 /**
@@ -351,6 +385,102 @@ export async function getRecentProjects(
   }
 
   return data ?? [];
+}
+
+/**
+ * 날짜 범위로 프로젝트 조회 (기간별 필터링용)
+ * @param startDate - 시작 날짜 (ISO 문자열 또는 Date 객체)
+ * @param endDate - 종료 날짜 (ISO 문자열 또는 Date 객체)
+ * @param ownerProfileId - 프로젝트 소유자 프로필 ID (선택사항)
+ * @param limit - 최대 조회 개수
+ * @param orderBy - 정렬 기준 (기본값: "created_at")
+ * @param ascending - 오름차순 여부 (기본값: false)
+ * @returns 프로젝트 목록
+ */
+export async function getProjectsByDateRange({
+  startDate,
+  endDate,
+  ownerProfileId,
+  limit,
+  page = 1,
+  orderBy = "created_at",
+  ascending = false,
+}: {
+  startDate: string | Date;
+  endDate: string | Date;
+  ownerProfileId?: string;
+  limit: number;
+  page?: number;
+  orderBy?: "created_at" | "updated_at" | "likes" | "views" | "ctr" | "budget";
+  ascending?: boolean;
+}) {
+  const startDateString =
+    startDate instanceof Date ? startDate.toISOString() : startDate;
+  const endDateString =
+    endDate instanceof Date ? endDate.toISOString() : endDate;
+
+  let query = client
+    .from("project_list_view")
+    .select("*")
+    .gte("created_at", startDateString)
+    .lte("created_at", endDateString)
+    .order(orderBy, { ascending })
+    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+
+  if (ownerProfileId) {
+    query = query.eq("owner_profile_id", ownerProfileId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("날짜 범위 프로젝트 조회 실패:", error);
+    throw new Error(`프로젝트를 불러오는데 실패했습니다: ${error.message}`);
+  }
+
+  return data ?? [];
+}
+
+/**
+ * 날짜 범위의 프로젝트 총 페이지 수 계산
+ * @param startDate - 시작 날짜 (ISO 문자열 또는 Date 객체)
+ * @param endDate - 종료 날짜 (ISO 문자열 또는 Date 객체)
+ * @param ownerProfileId - 프로젝트 소유자 프로필 ID (선택사항)
+ * @returns 총 페이지 수
+ */
+export async function getProjectPagesByDateRange({
+  startDate,
+  endDate,
+  ownerProfileId,
+}: {
+  startDate: string | Date;
+  endDate: string | Date;
+  ownerProfileId?: string;
+}) {
+  const startDateString =
+    startDate instanceof Date ? startDate.toISOString() : startDate;
+  const endDateString =
+    endDate instanceof Date ? endDate.toISOString() : endDate;
+
+  let query = client
+    .from("projects")
+    .select("project_id", { count: "exact", head: true })
+    .gte("created_at", startDateString)
+    .lte("created_at", endDateString);
+
+  if (ownerProfileId) {
+    query = query.eq("owner_profile_id", ownerProfileId);
+  }
+
+  const { count, error } = await query;
+
+  if (error) {
+    console.error("프로젝트 페이지 수 계산 실패:", error);
+    throw new Error(`페이지 수를 계산하는데 실패했습니다: ${error.message}`);
+  }
+
+  if (!count || count === 0) return 1;
+  return Math.ceil(count / PAGE_SIZE);
 }
 
 /**

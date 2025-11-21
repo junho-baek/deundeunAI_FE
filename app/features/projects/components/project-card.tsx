@@ -83,7 +83,7 @@ export default function ProjectCard(props: ProjectCardProps) {
     <Card className={"p-0 overflow-hidden " + (className ?? "")}> 
       {/* 미디어 프리뷰 (9:16) */}
       <CardContent className="px-0">
-        <Link to={to} className="block" aria-label={`${title} 상세보기`}>
+        <Link prefetch="viewport" to={to} className="block" aria-label={`${title} 상세보기`}>
           <div className="relative aspect-9/16 w-full overflow-hidden bg-muted">
             {isCreate ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -156,7 +156,7 @@ export default function ProjectCard(props: ProjectCardProps) {
 
       {/* 텍스트 영역 */}
       <CardHeader className="pt-4">
-        <Link to={to} className="block">
+        <Link prefetch="viewport" to={to} className="block">
           <CardTitle className="text-base leading-tight line-clamp-2">{title}</CardTitle>
           {description ? <CardDescription>{description}</CardDescription> : null}
         </Link>

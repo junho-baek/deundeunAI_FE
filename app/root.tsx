@@ -6,11 +6,12 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
-import { useLocation } from "react-router";
+import { useLocation, useNavigation } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
 import Navigation from "./common/components/navigation";
+import { cn } from "./lib/utils";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -45,6 +46,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const location = useLocation();
+  const navigation = useNavigation();
+  const isLoading = navigation.state === "loading";
+  
   const isMy = location.pathname.startsWith("/my");
   const isAuth = location.pathname.startsWith("/auth");
   const surfaceClass = isMy
@@ -58,9 +62,11 @@ export default function App() {
   ]
     .filter(Boolean)
     .join(" ");
-  const layoutClass = ["flex h-full w-full flex-col", surfaceClass]
-    .filter(Boolean)
-    .join(" ");
+  const layoutClass = cn(
+    "flex h-full w-full flex-col",
+    surfaceClass,
+    isLoading && "animate-pulse transition-opacity"
+  );
 
   return (
     <div className="w-screen h-screen overflow-hidden">

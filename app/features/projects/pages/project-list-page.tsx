@@ -3,9 +3,16 @@ import {
   type MetaFunction,
   useLoaderData,
 } from "react-router";
+import type { Route } from "./+types/project-list-page";
+import { z } from "zod";
 
 import ProjectCard from "~/features/projects/components/project-card";
-import { getProjects } from "~/features/projects/queries";
+import { getProjects, getProjectPages } from "~/features/projects/queries";
+import ProjectPagination from "~/common/components/project-pagination";
+
+const searchParamsSchema = z.object({
+  page: z.coerce.number().min(1).optional().default(1),
+});
 
 export const meta: MetaFunction = () => {
   return [
@@ -21,27 +28,74 @@ export const meta: MetaFunction = () => {
 };
 
 /**
- * 프로젝트 목록 데이터 로더
- * Supabase에서 프로젝트 목록을 조회합니다
+ * 프로젝트 목록 데이터 로더 (서버 사이드)
+ * Supabase에서 프로젝트 목록을 조회합니다 (페이지네이션 지원)
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
+    const url = new URL(request.url);
+    const { success, data: parsedData } = searchParamsSchema.safeParse(
+      Object.fromEntries(url.searchParams)
+    );
+
+    if (!success) {
+      throw new Response("Invalid page parameter", { status: 400 });
+    }
+
+    const page = parsedData.page;
+
     // TODO: 실제 사용자 인증이 구현되면 ownerProfileId를 전달
     // const session = await getSession(request);
     // const ownerProfileId = session?.user?.id;
-    const projects = await getProjects();
+    const ownerProfileId = undefined;
+
+    // 병렬로 프로젝트 목록과 총 페이지 수 조회
+    const [projects, totalPages] = await Promise.all([
+      getProjects(ownerProfileId, page),
+      getProjectPages(ownerProfileId),
+    ]);
 
     return {
       projects: projects ?? [],
+      totalPages,
+      currentPage: page,
     };
   } catch (error) {
     console.error("프로젝트 목록 로드 실패:", error);
-    // 에러 발생 시 빈 배열 반환 (UI는 계속 렌더링)
+    // 에러 발생 시 기본값 반환 (UI는 계속 렌더링)
     return {
       projects: [],
+      totalPages: 1,
+      currentPage: 1,
     };
   }
 }
+
+/**
+ * 프로젝트 목록 데이터 로더 (클라이언트 사이드)
+ * 서버 데이터를 재사용하고 클라이언트 전용 작업을 수행합니다
+ */
+export const clientLoader = async ({
+  serverLoader,
+}: Route.ClientLoaderArgs) => {
+  // 서버 데이터 가져오기
+  const serverData = await serverLoader();
+
+  // 클라이언트에서 추가 작업 수행
+  if (typeof window !== "undefined") {
+    // Analytics 추적 (예시)
+    // analytics.track("project_list_viewed", {
+    //   projectCount: serverData.projects.length,
+    //   timestamp: new Date().toISOString(),
+    // });
+
+    // 클라이언트 전용 데이터 추가 (예: 최근 본 프로젝트, 필터링 등)
+    // const recentViewedProjects = getRecentViewedProjects();
+  }
+
+  // 서버 데이터 그대로 반환
+  return serverData;
+};
 
 /**
  * 숫자를 포맷팅하는 헬퍼 함수
@@ -75,7 +129,7 @@ function formatBudget(budget: number | null | undefined): string | undefined {
 }
 
 export default function ProjectListPage() {
-  const { projects } = useLoaderData<typeof loader>();
+  const { projects, totalPages, currentPage } = useLoaderData<typeof loader>();
 
   return (
     <section className="flex h-full flex-col overflow-hidden">
@@ -106,6 +160,9 @@ export default function ProjectListPage() {
             />
           ))}
         </div>
+
+        {/* 페이지네이션 */}
+        <ProjectPagination totalPages={totalPages} currentPage={currentPage} />
       </div>
     </section>
   );

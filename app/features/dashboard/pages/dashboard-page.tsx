@@ -9,12 +9,16 @@ import {
   type LoaderFunctionArgs,
   type MetaFunction,
   useLoaderData,
+  Await,
 } from "react-router";
+import type { Route } from "./+types/dashboard-page";
+import { Suspense } from "react";
 
 import ProjectCard from "~/features/projects/components/project-card";
 import {
   getRecentProjects,
   getProjectStats,
+  getProjectsByDateRange,
 } from "~/features/projects/queries";
 import {
   getMetricWidgets,
@@ -211,8 +215,8 @@ export const meta: MetaFunction = () => {
 };
 
 /**
- * 대시보드 데이터 로더
- * 최근 프로젝트 목록, 통계 데이터, 위젯, 활동 피드를 조회합니다
+ * 대시보드 데이터 로더 (서버 사이드)
+ * 빠른 데이터(stats)는 즉시 로드하고, 느린 데이터는 Promise로 비동기 로드합니다
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
@@ -221,25 +225,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // const ownerProfileId = session?.user?.id;
     const ownerProfileId = undefined; // 임시로 undefined 사용
 
-    // 병렬로 데이터 조회
-    const [recentProjects, stats, metricWidgets, insights] = await Promise.all([
-      getRecentProjects(14, undefined, 10), // 최근 14일 내 업데이트된 프로젝트 최대 10개
-      getProjectStats(undefined),
-      getMetricWidgets(ownerProfileId), // 메트릭 위젯 조회
-      getInsightsFromActivityFeed(ownerProfileId, 3), // 활동 피드에서 인사이트 조회
-    ]);
+    // 빠른 데이터는 즉시 로드 (View 사용으로 빠름)
+    const stats = await getProjectStats(undefined);
 
+    // 느린 데이터는 Promise로 비동기 로드 (defer 없이 직접 Promise 반환)
     return {
-      recentProjects: recentProjects ?? [],
-      stats,
-      metricWidgets: metricWidgets ?? [],
-      insights: insights ?? [],
+      stats, // 이미 resolve된 데이터
+      recentProjects: getRecentProjects(14, undefined, 10), // Promise (비동기)
+      metricWidgets: getMetricWidgets(ownerProfileId), // Promise (비동기)
+      insights: getInsightsFromActivityFeed(ownerProfileId, 3), // Promise (비동기)
     };
   } catch (error) {
     console.error("대시보드 데이터 로드 실패:", error);
     // 에러 발생 시 기본값 반환
     return {
-      recentProjects: [],
       stats: {
         totalLikes: 0,
         totalViews: 0,
@@ -247,11 +246,36 @@ export async function loader({ request }: LoaderFunctionArgs) {
         totalBudget: 0,
         projectCount: 0,
       },
-      metricWidgets: [],
-      insights: [],
+      recentProjects: Promise.resolve([]),
+      metricWidgets: Promise.resolve([]),
+      insights: Promise.resolve([]),
     };
   }
 }
+
+/**
+ * 대시보드 데이터 로더 (클라이언트 사이드)
+ * 서버 데이터를 재사용하고 클라이언트 전용 작업(analytics 등)을 수행합니다
+ */
+export const clientLoader = async ({
+  serverLoader,
+}: Route.ClientLoaderArgs) => {
+  // 서버 데이터 가져오기
+  const serverData = await serverLoader();
+
+  // 클라이언트에서 추가 작업 수행
+  if (typeof window !== "undefined") {
+    // Analytics 추적 (예시)
+    // analytics.track("dashboard_viewed", {
+    //   timestamp: new Date().toISOString(),
+    // });
+    // 클라이언트 전용 데이터 추가 (예: 사용자 설정, 캐싱 등)
+    // const userPreferences = localStorage.getItem("dashboard_preferences");
+  }
+
+  // 서버 데이터 그대로 반환 (또는 수정된 데이터 반환)
+  return serverData;
+};
 
 /**
  * 숫자를 포맷팅하는 헬퍼 함수
@@ -289,12 +313,57 @@ function formatCurrency(amount: number): string {
   return `₩${amount.toLocaleString("ko-KR")}`;
 }
 
+/**
+ * 프로젝트 목록 스켈레톤 컴포넌트
+ */
+function ProjectListSkeleton() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="h-64 w-full animate-pulse rounded-lg bg-muted"
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * 통계 카드 스켈레톤 컴포넌트
+ */
+function StatsSkeleton() {
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="h-32 w-full animate-pulse rounded-lg bg-muted"
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * 인사이트 스켈레톤 컴포넌트
+ */
+function InsightsSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="h-20 w-full animate-pulse rounded-lg bg-muted"
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { recentProjects, stats, metricWidgets, insights } =
     useLoaderData<typeof loader>();
-
-  // 인사이트 데이터: 활동 피드에서 가져온 데이터가 있으면 사용, 없으면 기본값 사용
-  const displayInsights = insights.length > 0 ? insights : defaultInsights;
 
   return (
     <section className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col overflow-hidden">
@@ -318,18 +387,27 @@ export default function DashboardPage() {
             }}
           />
 
-          <div className="grid gap-4 md:grid-cols-3">
-            {getQuickStats(stats, metricWidgets).map((stat) => (
-              <DashboardStatCard
-                key={stat.id}
-                label={stat.label}
-                value={stat.value}
-                delta={stat.delta}
-                trend={stat.trend}
-                icon={stat.icon}
-              />
-            ))}
-          </div>
+          {/* 통계 카드 - 위젯 데이터가 로드될 때까지 스켈레톤 표시 */}
+          <Suspense fallback={<StatsSkeleton />}>
+            <Await resolve={metricWidgets}>
+              {(resolvedMetricWidgets) => (
+                <div className="grid gap-4 md:grid-cols-3">
+                  {getQuickStats(stats, resolvedMetricWidgets ?? []).map(
+                    (stat) => (
+                      <DashboardStatCard
+                        key={stat.id}
+                        label={stat.label}
+                        value={stat.value}
+                        delta={stat.delta}
+                        trend={stat.trend}
+                        icon={stat.icon}
+                      />
+                    )
+                  )}
+                </div>
+              )}
+            </Await>
+          </Suspense>
 
           <DashboardSection
             title="이번 주 추천 프리셋"
@@ -355,34 +433,56 @@ export default function DashboardPage() {
           </DashboardSection>
 
           <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            {/* 최근 프로젝트 - Suspense로 감싸서 로딩 상태 처리 */}
             <DashboardSection
               title="최근 실행한 프로젝트"
               description="본인이 직접 제작한 프로젝트 중 최근 14일 안에 업데이트된 캠페인이에요."
               className="flex flex-col gap-4"
             >
-              <DashboardProjectGrid
-                items={recentProjects}
-                renderItem={(project) => (
-                  <ProjectCard
-                    key={project.project_id}
-                    id={project.project_id}
-                    to={`/my/dashboard/project/${project.project_id}/analytics`}
-                    title={project.title}
-                    description={project.description || undefined}
-                    likes={formatNumber(project.likes)}
-                    ctr={formatCTR(project.ctr)}
-                    budget={formatBudget(project.budget)}
-                    thumbnail={project.thumbnail || undefined}
-                  />
-                )}
-                emptyMessage="최근 프로젝트가 없습니다. 새 프로젝트를 생성해보세요."
-              />
+              <Suspense fallback={<ProjectListSkeleton />}>
+                <Await resolve={recentProjects}>
+                  {(resolvedProjects) => (
+                    <DashboardProjectGrid
+                      items={resolvedProjects ?? []}
+                      renderItem={(project) => (
+                        <ProjectCard
+                          key={project.project_id}
+                          id={project.project_id}
+                          to={`/my/dashboard/project/${project.project_id}/analytics`}
+                          title={project.title}
+                          description={project.description || undefined}
+                          likes={formatNumber(project.likes)}
+                          ctr={formatCTR(project.ctr)}
+                          budget={formatBudget(project.budget)}
+                          thumbnail={project.thumbnail || undefined}
+                        />
+                      )}
+                      emptyMessage="최근 프로젝트가 없습니다. 새 프로젝트를 생성해보세요."
+                    />
+                  )}
+                </Await>
+              </Suspense>
             </DashboardSection>
-            <DashboardInsightsCard
-              title="AI 인사이트"
-              description="수익 보장형 프리셋을 실행하면 바로 체감할 변화예요."
-              items={displayInsights}
-            />
+
+            {/* AI 인사이트 - Suspense로 감싸서 로딩 상태 처리 */}
+            <Suspense fallback={<InsightsSkeleton />}>
+              <Await resolve={insights}>
+                {(resolvedInsights) => {
+                  // 인사이트 데이터: 활동 피드에서 가져온 데이터가 있으면 사용, 없으면 기본값 사용
+                  const displayInsights =
+                    resolvedInsights && resolvedInsights.length > 0
+                      ? resolvedInsights
+                      : defaultInsights;
+                  return (
+                    <DashboardInsightsCard
+                      title="AI 인사이트"
+                      description="수익 보장형 프리셋을 실행하면 바로 체감할 변화예요."
+                      items={displayInsights}
+                    />
+                  );
+                }}
+              </Await>
+            </Suspense>
           </section>
         </div>
       </div>

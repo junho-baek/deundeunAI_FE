@@ -1,4 +1,5 @@
 import { type LucideIcon } from "lucide-react";
+import { Link } from "react-router";
 import { Button } from "~/common/components/ui/button";
 import { Typography } from "~/common/components/typography";
 
@@ -60,17 +61,19 @@ export function DashboardHero({
           <div className="flex flex-wrap gap-3 pt-2">
             {primaryAction && (
               <Button size="lg" className="gap-2" asChild>
-                <a href={primaryAction.href}>
+                <Link prefetch="viewport" to={primaryAction.href}>
                   {primaryAction.label}
                   {primaryAction.icon && (
                     <primaryAction.icon className="size-4" aria-hidden="true" />
                   )}
-                </a>
+                </Link>
               </Button>
             )}
             {secondaryAction && (
               <Button size="lg" variant={secondaryAction.variant ?? "outline"} asChild>
-                <a href={secondaryAction.href}>{secondaryAction.label}</a>
+                <Link prefetch="viewport" to={secondaryAction.href}>
+                  {secondaryAction.label}
+                </Link>
               </Button>
             )}
           </div>
