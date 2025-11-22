@@ -1,10 +1,6 @@
 import { useOutletContext } from "react-router";
 import type { Route } from "./+types/public-profile-page";
 
-export const meta: Route.MetaFunction = () => {
-  return [{ title: "프로필 | 든든AI" }];
-};
-
 export default function PublicProfilePage() {
   const { headline, bio } = useOutletContext<{
     headline: string;

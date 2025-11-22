@@ -2,10 +2,6 @@ import ProjectCard from "~/features/projects/components/project-card";
 import { getUserProjects } from "../queries";
 import type { Route } from "./+types/public-profile-projects-page";
 
-export const meta: Route.MetaFunction = () => {
-  return [{ title: "프로젝트 | 든든AI" }];
-};
-
 export async function loader({ params }: Route.LoaderArgs) {
   const projects = await getUserProjects(params.username);
   return { projects };

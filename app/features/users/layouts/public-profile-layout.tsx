@@ -5,6 +5,10 @@ import { cn } from "~/lib/utils";
 import { getUserProfile } from "../queries";
 import type { Route } from "./+types/public-profile-layout";
 
+export const meta: Route.MetaFunction = ({ data }) => {
+  return [{ title: `${data.profile.name} | 든든AI` }];
+};
+
 export async function loader({ params }: Route.LoaderArgs) {
   const profile = await getUserProfile(params.username);
 
