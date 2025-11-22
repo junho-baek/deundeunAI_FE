@@ -10,6 +10,7 @@ import { generateProjectUUID, getCurrentUserName } from "~/lib/uuid-utils";
 import { createProject, createInitialProjectSteps } from "~/features/projects/queries";
 import { makeSSRClient } from "~/lib/supa-client";
 import { getUserById } from "~/features/users/queries";
+import { triggerProjectStartWebhook } from "~/lib/n8n-webhook";
 import ProjectDetailLayout from "~/features/projects/layouts/project-detail-layout";
 import ProjectWorkspacePage from "~/features/projects/pages/project-workspace-page";
 import { LoaderCircle } from "lucide-react";
@@ -129,6 +130,18 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // 프로젝트 단계 초기화 (serial ID 사용)
     await createInitialProjectSteps(client, project.id);
+
+    // n8n 워크플로우 트리거 (비동기, 에러 무시)
+    triggerProjectStartWebhook({
+      project_id: project.project_id,
+      project_title: project.title,
+      owner_profile_id: ownerProfileId,
+      status: project.status,
+      created_at: project.created_at,
+      metadata: project.metadata as Record<string, unknown> | undefined,
+    }).catch((error) => {
+      console.error("n8n 웹훅 호출 실패 (프로젝트 생성은 계속 진행):", error);
+    });
 
     const params = new URLSearchParams();
     params.set("keyword", keyword.trim());

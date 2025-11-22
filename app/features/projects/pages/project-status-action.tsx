@@ -8,6 +8,7 @@
 import { type ActionFunctionArgs, data } from "react-router";
 import { updateProjectStep } from "../queries";
 import { makeSSRClient } from "~/lib/supa-client";
+import { triggerProjectStepStartWebhook } from "~/lib/n8n-webhook";
 
 export async function updateStepStatusAction({ request, params }: ActionFunctionArgs) {
   if (request.method !== "POST") {
@@ -70,6 +71,18 @@ export async function updateStepStatusAction({ request, params }: ActionFunction
       status as any,
       metadata
     );
+
+    // 단계가 in_progress로 시작될 때 n8n 워크플로우 트리거
+    if (status === "in_progress") {
+      triggerProjectStepStartWebhook({
+        project_id: projectId,
+        step_key: stepKey,
+        step_status: status,
+        started_at: updatedStep.started_at || new Date().toISOString(),
+      }).catch((error) => {
+        console.error("n8n 웹훅 호출 실패 (상태 업데이트는 계속 진행):", error);
+      });
+    }
 
     return data({ success: true, step: updatedStep });
   } catch (error) {
