@@ -63,7 +63,9 @@ export function ProfileSummaryCard({
       <CardContent className="flex flex-col gap-6">
         <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
           <Avatar className="size-16 border-2 border-primary/30">
-            <AvatarImage src={avatarUrl} alt={`${name} 아바타`} />
+            {avatarUrl ? (
+              <AvatarImage src={avatarUrl} alt={`${name} 아바타`} />
+            ) : null}
             <AvatarFallback>{avatarFallback}</AvatarFallback>
           </Avatar>
           <div className="space-y-1">

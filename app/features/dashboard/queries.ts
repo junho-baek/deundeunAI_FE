@@ -104,13 +104,18 @@ export async function getDashboardGoals(
 }
 
 /**
- * 메트릭 타입 위젯 조회 (통계 카드용) - View 사용
+ * 메트릭 타입 위젯 조회 (통계 카드용)
+ * dashboard_widgets 테이블에서 widget_key가 'metric'인 위젯만 조회
  * @param profileId - 프로필 ID (선택사항)
  * @returns 메트릭 위젯 배열
  */
 export async function getMetricWidgets(profileId?: string) {
   try {
-    let query = client.from("dashboard_widget_metric_view").select("*");
+    let query = client
+      .from("dashboard_widgets")
+      .select("*")
+      .eq("widget_key", "metric")
+      .order("position", { ascending: true });
 
     if (profileId) {
       query = query.eq("profile_id", profileId);

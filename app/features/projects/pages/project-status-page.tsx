@@ -1,4 +1,5 @@
-import type { MetaFunction } from "react-router";
+import type { MetaFunction, ActionFunctionArgs } from "react-router";
+import { updateStepStatusAction } from "./project-status-action";
 
 export const meta: MetaFunction = () => {
   return [
@@ -7,6 +8,8 @@ export const meta: MetaFunction = () => {
     },
   ];
 };
+
+export const action = updateStepStatusAction;
 
 export default function ProjectStatusPage() {
   return (

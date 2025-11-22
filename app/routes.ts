@@ -21,6 +21,16 @@ export default [
 
   route("/pricing", "features/pricing/pages/pricing-page.tsx"),
 
+  // ───────────────
+  // Public User Profiles
+  // ───────────────
+  ...prefix("/users/:username", [
+    layout("features/users/layouts/public-profile-layout.tsx", [
+      index("features/users/pages/public-profile-page.tsx"),
+      route("projects", "features/users/pages/public-profile-projects-page.tsx"),
+    ]),
+  ]),
+
   ...prefix("/usecases", [
     layout("features/usecases/layouts/usecases-layout.tsx", [
       index("features/usecases/pages/usecases-index-page.tsx"),

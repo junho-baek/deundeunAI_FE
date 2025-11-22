@@ -3,6 +3,7 @@ import {
   Outlet,
   type ClientLoaderFunctionArgs,
   type LoaderFunctionArgs,
+  useFetcher,
   useLoaderData,
   useParams,
 } from "react-router";
@@ -15,7 +16,9 @@ import ChatInitForm, {
 import ChatConfirmCard from "~/features/projects/components/chat-confirm-card";
 import { Typography } from "~/common/components/typography";
 import { Separator } from "~/common/components/ui/separator";
-import { getProjectByProjectId } from "~/features/projects/queries";
+import { getProjectByProjectId, getProjectSteps } from "~/features/projects/queries";
+import { getProfileSlug } from "~/features/users/queries";
+import { useProjectStepStatus } from "../hooks/use-project-step-status";
 
 type MessageAttachment = { name: string; size?: number };
 type Message = {
@@ -62,6 +65,7 @@ const ProjectDetailContext =
 type LoaderData = {
   initialChatPayload: ChatFormData | null;
   project: Awaited<ReturnType<typeof getProjectByProjectId>> | null;
+  ownerSlug: string | null;
 };
 
 function extractInitialChatPayload(url: URL): ChatFormData | null {
@@ -107,9 +111,17 @@ export const loader = async ({
 
   // 프로젝트 데이터 조회
   let project = null;
+  let projectSteps: Awaited<ReturnType<typeof getProjectSteps>> = [];
+  let ownerSlug: string | null = null;
   if (projectId && projectId !== "create") {
     try {
       project = await getProjectByProjectId(projectId);
+      projectSteps = await getProjectSteps(projectId);
+      
+      // owner slug 조회 (공개 프로필 링크용)
+      if (project?.owner_profile_id) {
+        ownerSlug = await getProfileSlug(project.owner_profile_id);
+      }
     } catch (error) {
       console.error("프로젝트 로드 실패:", error);
       // 에러가 발생해도 UI는 계속 렌더링
@@ -119,6 +131,8 @@ export const loader = async ({
   return {
     initialChatPayload,
     project,
+    projectSteps,
+    ownerSlug,
   };
 };
 
@@ -145,7 +159,7 @@ export const clientLoader = ({
     window.history.replaceState(window.history.state, "", currentUrl.href);
   }
 
-  return { initialChatPayload, project: null };
+  return { initialChatPayload, project: null, projectSteps: [], ownerSlug: null };
 };
 
 function createConversationEntries({
@@ -187,6 +201,16 @@ function useProjectDetailState(
   const loaderDataFromHook = useLoaderData<LoaderData | null>();
   const loaderData = loaderDataProp ?? loaderDataFromHook;
   const initialChatPayload = loaderData?.initialChatPayload ?? null;
+
+  // 프로젝트 단계 상태 폴링 및 동기화
+  const {
+    getStepLoading,
+    getStepDone,
+    stepStatusMap,
+  } = useProjectStepStatus(projectId, {
+    enabled: !!projectId && projectId !== "create",
+    interval: 3000, // 3초마다 폴링
+  });
 
   const initialMessages = React.useMemo(
     () =>
@@ -231,7 +255,27 @@ function useProjectDetailState(
     ],
     []
   );
-  const [loading, setLoading] = React.useState<LoadingState>({
+  // DB 상태와 동기화된 loading/done 상태
+  const dbLoading = React.useMemo<LoadingState>(() => ({
+    brief: getStepLoading("brief"),
+    script: getStepLoading("script"),
+    narration: getStepLoading("narration"),
+    images: getStepLoading("images"),
+    videos: getStepLoading("videos"),
+    final: getStepLoading("final"),
+  }), [getStepLoading]);
+
+  const dbDone = React.useMemo<DoneState>(() => ({
+    brief: getStepDone("brief"),
+    script: getStepDone("script"),
+    narration: getStepDone("narration"),
+    images: getStepDone("images"),
+    videos: getStepDone("videos"),
+    final: getStepDone("final"),
+  }), [getStepDone]);
+
+  // 수동으로 상태를 업데이트할 수 있는 함수들 (필요시 사용)
+  const [manualLoading, setManualLoading] = React.useState<LoadingState>({
     brief: false,
     script: false,
     narration: false,
@@ -239,7 +283,7 @@ function useProjectDetailState(
     videos: false,
     final: false,
   });
-  const [done, setDone] = React.useState<DoneState>({
+  const [manualDone, setManualDone] = React.useState<DoneState>({
     brief: false,
     script: false,
     narration: false,
@@ -247,6 +291,25 @@ function useProjectDetailState(
     videos: false,
     final: false,
   });
+
+  // DB 상태와 수동 상태를 병합 (수동 상태가 우선)
+  const loading = React.useMemo<LoadingState>(() => ({
+    brief: manualLoading.brief || dbLoading.brief,
+    script: manualLoading.script || dbLoading.script,
+    narration: manualLoading.narration || dbLoading.narration,
+    images: manualLoading.images || dbLoading.images,
+    videos: manualLoading.videos || dbLoading.videos,
+    final: manualLoading.final || dbLoading.final,
+  }), [manualLoading, dbLoading]);
+
+  const done = React.useMemo<DoneState>(() => ({
+    brief: manualDone.brief || dbDone.brief,
+    script: manualDone.script || dbDone.script,
+    narration: manualDone.narration || dbDone.narration,
+    images: manualDone.images || dbDone.images,
+    videos: manualDone.videos || dbDone.videos,
+    final: manualDone.final || dbDone.final,
+  }), [manualDone, dbDone]);
 
   const toggleSelectImage = React.useCallback((id: number) => {
     setSelectedImages((prev) =>
@@ -330,15 +393,35 @@ function useProjectDetailState(
     setMessages((prev) => [...prev, ...entries]);
   }, []);
 
+  const fetcher = useFetcher();
+  
   const handleSubmit = React.useCallback(
     async (payload: ChatFormData) => {
-      if (!projectId) return;
+      // projectId가 "create"이거나 없으면 프로젝트 생성 action 호출
+      if (!projectId || projectId === "create") {
+        const formData = new FormData();
+        formData.append("keyword", payload.message);
+        formData.append("aspectRatio", payload.aspectRatio);
+        if (payload.projectId) {
+          formData.append("projectId", payload.projectId);
+        }
+        for (const image of payload.images) {
+          formData.append("images", image);
+        }
+        
+        fetcher.submit(formData, {
+          method: "post",
+          action: "/my/dashboard/project/create",
+          encType: "multipart/form-data",
+        });
+        return;
+      }
 
       appendConversation(payload);
 
       // TODO: 실제 프로젝트 생성/업데이트 완료 시 워크스페이스 페이지로 리다이렉트 처리
     },
-    [appendConversation, projectId]
+    [appendConversation, projectId, fetcher]
   );
 
   return React.useMemo(
@@ -353,9 +436,9 @@ function useProjectDetailState(
       toggleSelectVideo,
       videoTimelines,
       loading,
-      setLoading,
+      setLoading: setManualLoading,
       done,
-      setDone,
+      setDone: setManualDone,
       narrationSegments,
     }),
     [
@@ -371,8 +454,6 @@ function useProjectDetailState(
       toggleSelectImage,
       toggleSelectVideo,
       videoTimelines,
-      setLoading,
-      setDone,
     ]
   );
 }
@@ -393,7 +474,8 @@ export function useProjectDetail() {
 
 export default function ProjectDetailLayout({
   loaderData,
-}: Route.ComponentProps) {
+  children,
+}: Route.ComponentProps & { children?: React.ReactNode }) {
   const contextValue = useProjectDetailState(
     loaderData as LoaderData | null | undefined
   );
@@ -437,7 +519,7 @@ export default function ProjectDetailLayout({
 
           <main className="flex-1 min-w-0 overflow-hidden" role="main">
             <div className="h-full w-full overflow-y-auto">
-              <Outlet />
+              {children || <Outlet />}
             </div>
           </main>
         </div>

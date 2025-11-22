@@ -2,16 +2,39 @@ import {
   type LoaderFunctionArgs,
   type MetaFunction,
   useLoaderData,
+  useSearchParams,
+  Form,
+  data,
 } from "react-router";
 import type { Route } from "./+types/project-list-page";
 import { z } from "zod";
+import { ChevronDown } from "lucide-react";
 
 import ProjectCard from "~/features/projects/components/project-card";
 import { getProjects, getProjectPages } from "~/features/projects/queries";
 import ProjectPagination from "~/common/components/project-pagination";
+import { Button } from "~/common/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/common/components/ui/dropdown-menu";
+import { Input } from "~/common/components/ui/input";
+import { SORT_OPTIONS, PERIOD_OPTIONS } from "../constants";
 
 const searchParamsSchema = z.object({
   page: z.coerce.number().min(1).optional().default(1),
+  sorting: z
+    .enum(SORT_OPTIONS.map((opt) => opt.value) as [string, ...string[]])
+    .optional()
+    .default("newest"),
+  period: z
+    .enum(PERIOD_OPTIONS.map((opt) => opt.value) as [string, ...string[]])
+    .optional()
+    .default("all"),
+  keyword: z.string().optional(),
+  status: z.string().optional(),
 });
 
 export const meta: MetaFunction = () => {
@@ -39,10 +62,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     );
 
     if (!success) {
-      throw new Response("Invalid page parameter", { status: 400 });
+      throw data(
+        {
+          error_code: "invalid_search_params",
+          message: "Invalid search parameters",
+        },
+        { status: 400 }
+      );
     }
-
-    const page = parsedData.page;
 
     // TODO: 실제 사용자 인증이 구현되면 ownerProfileId를 전달
     // const session = await getSession(request);
@@ -51,14 +78,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // 병렬로 프로젝트 목록과 총 페이지 수 조회
     const [projects, totalPages] = await Promise.all([
-      getProjects(ownerProfileId, page),
+      getProjects({
+        ownerProfileId,
+        page: parsedData.page,
+        sorting: parsedData.sorting,
+        period: parsedData.period,
+        keyword: parsedData.keyword,
+        status: parsedData.status,
+      }),
       getProjectPages(ownerProfileId),
     ]);
 
     return {
       projects: projects ?? [],
       totalPages,
-      currentPage: page,
+      currentPage: parsedData.page,
+      filters: {
+        sorting: parsedData.sorting,
+        period: parsedData.period,
+        keyword: parsedData.keyword,
+        status: parsedData.status,
+      },
     };
   } catch (error) {
     console.error("프로젝트 목록 로드 실패:", error);
@@ -67,6 +107,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
       projects: [],
       totalPages: 1,
       currentPage: 1,
+      filters: {
+        sorting: "newest" as const,
+        period: "all" as const,
+        keyword: undefined,
+        status: undefined,
+      },
     };
   }
 }
@@ -129,11 +175,86 @@ function formatBudget(budget: number | null | undefined): string | undefined {
 }
 
 export default function ProjectListPage() {
-  const { projects, totalPages, currentPage } = useLoaderData<typeof loader>();
+  const { projects, totalPages, currentPage, filters } =
+    useLoaderData<typeof loader>();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const updateFilter = (key: string, value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value && value !== "all" && value !== "newest") {
+      newParams.set(key, value);
+    } else {
+      newParams.delete(key);
+    }
+    newParams.set("page", "1"); // 필터 변경 시 첫 페이지로
+    setSearchParams(newParams, { preventScrollReset: true });
+  };
+
+  const currentSortLabel =
+    SORT_OPTIONS.find((opt) => opt.value === filters.sorting)?.label ||
+    "최신순";
+  const currentPeriodLabel =
+    PERIOD_OPTIONS.find((opt) => opt.value === filters.period)?.label || "전체";
 
   return (
     <section className="flex h-full flex-col overflow-hidden">
-      <h1 className="mb-8">프로젝트 목록</h1>
+      <div className="mb-8 flex flex-col gap-4">
+        <h1>프로젝트 목록</h1>
+
+        {/* 필터링 컨트롤 */}
+        <div className="flex flex-wrap items-center gap-4">
+          {/* 정렬 선택 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                정렬: {currentSortLabel}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {SORT_OPTIONS.map((option) => (
+                <DropdownMenuItem
+                  key={option.value}
+                  onClick={() => updateFilter("sorting", option.value)}
+                >
+                  {option.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* 기간 필터 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                기간: {currentPeriodLabel}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {PERIOD_OPTIONS.map((option) => (
+                <DropdownMenuItem
+                  key={option.value}
+                  onClick={() => updateFilter("period", option.value)}
+                >
+                  {option.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* 검색 */}
+          <Form className="flex-1 min-w-[200px]" method="get">
+            <Input
+              type="text"
+              name="keyword"
+              placeholder="프로젝트 검색..."
+              defaultValue={filters.keyword}
+              className="max-w-sm"
+            />
+          </Form>
+        </div>
+      </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="grid gap-6 justify-start grid-cols-[repeat(auto-fit,minmax(220px,220px))]">

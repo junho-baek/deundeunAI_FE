@@ -2,6 +2,11 @@
 .env
 /node_modules/
 
+# Vite
+.vite/
+node_modules/.vite/
+
 # React Router
 /.react-router/
 /build/
+supaplate-master/

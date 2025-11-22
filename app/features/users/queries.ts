@@ -30,6 +30,96 @@ export async function getProfile(profileId: string) {
 }
 
 /**
+ * 프로필 ID로 slug 조회 (공개 프로필 링크 생성용)
+ * @param profileId - 프로필 ID (UUID)
+ * @returns slug 또는 null
+ */
+export async function getProfileSlug(profileId: string): Promise<string | null> {
+  const { data, error } = await client
+    .from("profiles")
+    .select("slug")
+    .eq("id", profileId)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    console.error("프로필 slug 조회 실패:", error);
+    return null;
+  }
+
+  return data?.slug || null;
+}
+
+/**
+ * 사용자명(slug)으로 프로필 정보 조회 (공개 프로필용)
+ * @param slug - 사용자 slug (username)
+ * @returns 프로필 객체 또는 null
+ */
+export async function getUserProfile(slug: string) {
+  const { data, error } = await client
+    .from("profiles")
+    .select(`
+      id,
+      slug,
+      name,
+      role,
+      company,
+      avatar_url,
+      bio,
+      email,
+      timezone,
+      joined_at,
+      created_at,
+      updated_at,
+      project_count
+    `)
+    .eq("slug", slug)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    console.error("프로필 조회 실패:", error);
+    throw new Error(`프로필을 불러오는데 실패했습니다: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * 사용자명(slug)으로 프로젝트 목록 조회 (공개 프로필용)
+ * @param slug - 사용자 slug (username)
+ * @param limit - 조회할 프로젝트 개수 (기본값: 20)
+ * @returns 프로젝트 배열
+ */
+export async function getUserProjects(slug: string, limit: number = 20) {
+  // 먼저 프로필을 조회하여 profile_id를 얻음
+  const profile = await getUserProfile(slug);
+  if (!profile) {
+    return [];
+  }
+
+  // 관계 쿼리 대신 직접 profile_id로 조회 (더 안정적)
+  const { data, error } = await client
+    .from("projects")
+    .select("*")
+    .eq("owner_profile_id", profile.id)
+    .eq("visibility", "public") // 공개 프로필이므로 공개된 프로젝트만
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("사용자 프로젝트 조회 실패:", error);
+    return [];
+  }
+
+  return data ?? [];
+}
+
+/**
  * 프로필 활동 메트릭 조회
  * @param profileId - 프로필 ID (UUID)
  * @returns 활동 메트릭 배열

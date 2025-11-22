@@ -44,7 +44,7 @@ export function ChatBox(props: ChatBoxProps) {
       {stackBelowAvatar ? (
         <div className="flex w-full flex-col items-start gap-1">
           <Avatar>
-            <AvatarImage src={avatarSrc} alt={role} />
+            {avatarSrc ? <AvatarImage src={avatarSrc} alt={role} /> : null}
             <AvatarFallback>
               {avatarFallback ?? (role === "user" ? "U" : "A")}
             </AvatarFallback>
@@ -101,7 +101,7 @@ export function ChatBox(props: ChatBoxProps) {
           }
         >
           <Avatar>
-            <AvatarImage src={avatarSrc} alt={role} />
+            {avatarSrc ? <AvatarImage src={avatarSrc} alt={role} /> : null}
             <AvatarFallback>
               {avatarFallback ?? (role === "user" ? "U" : "A")}
             </AvatarFallback>

@@ -80,9 +80,9 @@ export default function ProjectCard(props: ProjectCardProps) {
   const { id, to, title, description, likes, ctr, budget, tiktokUrl, videoUrl, thumbnail, className, isCreate, ctaText } = props;
 
   return (
-    <Card className={"p-0 overflow-hidden " + (className ?? "")}> 
+    <Card className={"p-0 overflow-hidden flex flex-col " + (className ?? "")}> 
       {/* 미디어 프리뷰 (9:16) */}
-      <CardContent className="px-0">
+      <CardContent className="px-0 flex-shrink-0">
         <Link prefetch="viewport" to={to} className="block" aria-label={`${title} 상세보기`}>
           <div className="relative aspect-9/16 w-full overflow-hidden bg-muted">
             {isCreate ? (
@@ -155,7 +155,7 @@ export default function ProjectCard(props: ProjectCardProps) {
       </CardContent>
 
       {/* 텍스트 영역 */}
-      <CardHeader className="pt-4">
+      <CardHeader className="pt-4 flex-shrink-0 min-h-[80px]">
         <Link prefetch="viewport" to={to} className="block">
           <CardTitle className="text-base leading-tight line-clamp-2">{title}</CardTitle>
           {description ? <CardDescription>{description}</CardDescription> : null}
@@ -165,7 +165,7 @@ export default function ProjectCard(props: ProjectCardProps) {
 
       {/* 메트릭 영역 */}
       {!isCreate && (
-        <CardFooter className="border-t text-sm text-muted-foreground">
+        <CardFooter className="border-t text-sm text-muted-foreground mt-auto">
           <div className="flex w-full items-center justify-between">
             <div className="flex flex-col items-center gap-1">
               <span className="font-medium text-foreground">{likes}</span>

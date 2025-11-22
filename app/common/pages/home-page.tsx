@@ -27,6 +27,12 @@ export default function HomePage() {
       const formData = new FormData();
       formData.append("keyword", payload.message);
       formData.append("aspectRatio", payload.aspectRatio);
+      
+      // 생성된 프로젝트 UUID 추가
+      if (payload.projectId) {
+        formData.append("projectId", payload.projectId);
+      }
+      
       for (const image of payload.images) {
         formData.append("images", image);
       }

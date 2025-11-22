@@ -55,9 +55,23 @@ export async function loader({ params }: LoaderFunctionArgs) {
   }
 }
 
-export default function ProjectWorkspacePage() {
-  const { workspaceData } = useLoaderData<typeof loader>();
-  const { projectId } = useParams();
+export default function ProjectWorkspacePage({
+  workspaceData: workspaceDataProp,
+}: {
+  workspaceData?: Awaited<ReturnType<typeof loader>>["workspaceData"];
+} = {}) {
+  // useLoaderData는 항상 호출해야 함 (React 규칙)
+  // props로 workspaceData가 전달되면 그것을 우선 사용
+  // project-create-page.tsx의 loader 데이터도 처리 가능하도록 any 타입 사용
+  const loaderData = useLoaderData<any>();
+
+  // loaderData에서 workspaceData 추출 (여러 형식 지원)
+  const loaderWorkspaceData = loaderData?.workspaceData ?? null;
+  const workspaceData = workspaceDataProp ?? loaderWorkspaceData ?? null;
+
+  // projectId는 optional (project-create-page.tsx에서는 없을 수 있음)
+  const params = useParams();
+  const projectId = params?.projectId;
   const {
     imageTimelines,
     selectedImages,
@@ -73,12 +87,16 @@ export default function ProjectWorkspacePage() {
   // 데이터베이스에서 가져온 문서 데이터 사용
   const briefDocument = React.useMemo(() => {
     if (!workspaceData?.documents) return null;
-    return workspaceData.documents.find((doc) => doc.type === "brief");
+    return workspaceData.documents.find(
+      (doc: { type: string }) => doc.type === "brief"
+    );
   }, [workspaceData]);
 
   const scriptDocument = React.useMemo(() => {
     if (!workspaceData?.documents) return null;
-    return workspaceData.documents.find((doc) => doc.type === "script");
+    return workspaceData.documents.find(
+      (doc: { type: string }) => doc.type === "script"
+    );
   }, [workspaceData]);
 
   // 기획서 마크다운 (데이터베이스에서 가져오거나 기본값)
@@ -105,12 +123,18 @@ export default function ProjectWorkspacePage() {
 
   // 대본 단락 (데이터베이스에서 가져오거나 기본값)
   const scriptParagraphs = React.useMemo(() => {
-    if (scriptDocument?.content_json && Array.isArray(scriptDocument.content_json)) {
+    if (
+      scriptDocument?.content_json &&
+      Array.isArray(scriptDocument.content_json)
+    ) {
       return scriptDocument.content_json;
     }
     if (scriptDocument?.content) {
-      // content를 단락으로 분리
-      return scriptDocument.content.split("\n\n").filter((p) => p.trim());
+      // content를 단락으로 분리 (공백 제거 및 빈 값 필터링)
+      return scriptDocument.content
+        .split("\n\n")
+        .map((p: string) => p.trim())
+        .filter((p: string) => p.length > 0);
     }
     return [
       "00:00 / 00:10 Lorem ipsum dolor sit amet consectetur adipisicing elit...",
@@ -120,10 +144,16 @@ export default function ProjectWorkspacePage() {
 
   // 오디오 세그먼트 (데이터베이스에서 가져오거나 기본값)
   const narrationSegmentsFromDb = React.useMemo(() => {
-    if (workspaceData?.audioSegments && workspaceData.audioSegments.length > 0) {
+    if (
+      workspaceData?.audioSegments &&
+      workspaceData.audioSegments.length > 0
+    ) {
       return workspaceData.audioSegments.map((seg: any, index: number) => ({
         id: seg.id || index + 1,
-        label: seg.label || seg.timeline_label || `00:${index * 10}–00:${(index + 1) * 10}`,
+        label:
+          seg.label ||
+          seg.timeline_label ||
+          `00:${index * 10}–00:${(index + 1) * 10}`,
         src: seg.audio_url || `/audio/seg-${index + 1}.mp3`,
       }));
     }
@@ -131,8 +161,7 @@ export default function ProjectWorkspacePage() {
   }, [workspaceData]);
 
   // 데이터베이스에서 가져온 오디오 세그먼트가 있으면 사용, 없으면 기본값 사용
-  const narrationSegments =
-    narrationSegmentsFromDb || defaultNarrationSegments;
+  const narrationSegments = narrationSegmentsFromDb || defaultNarrationSegments;
 
   // 이미지 URL 목록 (미디어 자산에서 가져오기)
   const imageUrls = React.useMemo(() => {

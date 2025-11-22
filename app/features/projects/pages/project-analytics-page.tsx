@@ -17,7 +17,9 @@ import { Typography } from "~/common/components/typography";
 import {
   getProjectAnalytics,
   getProjectRevenueForecasts,
+  getProjectByProjectId,
 } from "~/features/projects/queries";
+import { getProfileSlug } from "~/features/users/queries";
 
 export const meta: MetaFunction = () => {
   return [
@@ -42,24 +44,38 @@ export async function loader({ params }: LoaderFunctionArgs) {
     return {
       analytics: null,
       revenueForecasts: [],
+      ownerSlug: null,
     };
   }
 
   try {
-    const [analytics, revenueForecasts] = await Promise.all([
+    const [analytics, revenueForecasts, project] = await Promise.all([
       getProjectAnalytics(projectId),
       getProjectRevenueForecasts(projectId, 6),
+      getProjectByProjectId(projectId),
     ]);
+
+    // owner slug 조회 (공개 프로필 링크용)
+    let ownerSlug: string | null = null;
+    if (project?.owner_profile_id) {
+      try {
+        ownerSlug = await getProfileSlug(project.owner_profile_id);
+      } catch (error) {
+        console.error("프로필 slug 조회 실패:", error);
+      }
+    }
 
     return {
       analytics,
       revenueForecasts: revenueForecasts ?? [],
+      ownerSlug,
     };
   } catch (error) {
     console.error("프로젝트 분석 데이터 로드 실패:", error);
     return {
       analytics: null,
       revenueForecasts: [],
+      ownerSlug: null,
     };
   }
 }
@@ -137,7 +153,8 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function ProjectAnalyticsPage() {
-  const { analytics, revenueForecasts } = useLoaderData<typeof loader>();
+  const { analytics, revenueForecasts, ownerSlug } =
+    useLoaderData<typeof loader>();
   const params = useParams<{ projectId: string }>();
   const projectId = params.projectId;
 
@@ -174,12 +191,12 @@ export default function ProjectAnalyticsPage() {
   // 수익 통계 계산
   const { totalActual, totalExpected, variance } = React.useMemo(() => {
     const totalActualValue = revenueChartData
-      .map((item) => item.actual)
+      .map((item: { actual: number; expected: number }) => item.actual)
       .filter(Boolean)
-      .reduce((sum, value) => sum + value, 0);
+      .reduce((sum: number, value: number) => sum + value, 0);
     const totalExpectedValue = revenueChartData
-      .map((item) => item.expected)
-      .reduce((sum, value) => sum + value, 0);
+      .map((item: { actual: number; expected: number }) => item.expected)
+      .reduce((sum: number, value: number) => sum + value, 0);
     const varianceValue = totalActualValue - totalExpectedValue;
 
     return {

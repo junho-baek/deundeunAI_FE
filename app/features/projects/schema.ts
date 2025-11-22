@@ -3,6 +3,7 @@ import {
   boolean,
   date,
   doublePrecision,
+  foreignKey,
   integer,
   jsonb,
   numeric,
@@ -103,9 +104,7 @@ export const projects = pgTable(
 
     projectId: uuid("project_id").defaultRandom().notNull(),
 
-    ownerProfileId: uuid("owner_profile_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
+    ownerProfileId: uuid("owner_profile_id").notNull(),
 
     slug: text("slug"),
 
@@ -149,6 +148,11 @@ export const projects = pgTable(
       .notNull(),
   },
   (table) => ({
+    projectsToProfilesFk: foreignKey({
+      columns: [table.ownerProfileId],
+      foreignColumns: [profiles.id],
+      name: "projects_to_profiles",
+    }).onDelete("cascade"),
     projectIdIdx: uniqueIndex("projects_project_id_unique").on(table.projectId),
     slugIdx: uniqueIndex("projects_slug_unique").on(table.slug),
   })

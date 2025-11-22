@@ -1,8 +1,8 @@
 import * as React from "react";
 import { Button } from "~/common/components/ui/button";
 import { Textarea } from "~/common/components/ui/textarea";
-import { Form } from "react-router";
 import { ImageUp, SendHorizontal, X } from "lucide-react";
+import { generateProjectUUID, getCurrentUserName } from "~/lib/uuid-utils";
 
 export type AspectRatioOption = "9:16" | "16:9" | "1:1";
 
@@ -10,6 +10,7 @@ export type ChatFormData = {
   message: string;
   images: File[];
   aspectRatio: AspectRatioOption;
+  projectId?: string; // 생성된 프로젝트 UUID
 };
 
 export type ChatFormProps = {
@@ -36,10 +37,15 @@ export default function ChatForm({
     const trimmed = value.trim();
     if (!trimmed) return;
 
+    // 유저 이름과 날짜 정보를 기반으로 UUID 생성
+    const userName = getCurrentUserName();
+    const projectId = generateProjectUUID(userName, trimmed);
+
     const payload: ChatFormData = {
       message: trimmed,
       images,
       aspectRatio,
+      projectId, // 생성된 프로젝트 UUID 포함
     };
 
     await onSubmit(payload);
@@ -94,8 +100,7 @@ export default function ChatForm({
   };
 
   return (
-    <Form
-      method="post"
+    <form
       className={"w-full " + (className ?? "")}
       onSubmit={handleSubmit}
     >
@@ -191,6 +196,6 @@ export default function ChatForm({
           ))}
         </div>
       ) : null}
-    </Form>
+    </form>
   );
 }
