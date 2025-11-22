@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router";
 import { Separator } from "~/common/components/ui/separator";
+import { CreditBalance } from "./credit-balance";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -114,6 +115,7 @@ export default function Navigation({
   username,
   avatar,
   name,
+  creditBalance,
 }: {
   isLoggedIn: boolean;
   hasNotifications: boolean;
@@ -122,6 +124,7 @@ export default function Navigation({
   username?: string;
   avatar?: string | null;
   name?: string;
+  creditBalance?: number;
 }) {
   const location = useLocation();
   const isAuthPage = location.pathname.startsWith("/auth/");
@@ -210,6 +213,13 @@ export default function Navigation({
           <AnimatedThemeToggler className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/70 text-foreground transition hover:bg-muted" />
           {!isCompact && (
             <>
+              {creditBalance !== undefined && (
+                <CreditBalance
+                  currentBalance={creditBalance}
+                  compact={true}
+                  className="hidden md:flex"
+                />
+              )}
               <Button size="icon" variant="ghost" asChild className="relative">
                 <Link to="/my/notifications">
                   <BellIcon className="size-4" />

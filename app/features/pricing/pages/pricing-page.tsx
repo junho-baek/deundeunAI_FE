@@ -1,17 +1,9 @@
-import { Check, Sparkles } from "lucide-react";
-import { Link, type MetaFunction } from "react-router";
+import { Sparkles } from "lucide-react";
+import { Link, type MetaFunction, useFetcher } from "react-router";
 
 import { Button } from "~/common/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "~/common/components/ui/card";
 import { Typography } from "~/common/components/typography";
-import { cn } from "~/lib/utils";
+import { PricingPlanCard } from "../components/pricing-plan-card";
 
 const plans = [
   {
@@ -23,6 +15,7 @@ const plans = [
     to: "/auth/join",
     highlight: false,
     badge: "시니어 입문자",
+    monthlyCredits: 0,
     features: [
       "주 10회까지 스크립트 · 썸네일 아이디어 생성",
       "시니어 맞춤 온보딩 영상과 전화 가이드 1회",
@@ -39,6 +32,7 @@ const plans = [
     to: "/subscribe",
     highlight: true,
     badge: "수익 책임제",
+    monthlyCredits: 10000,
     features: [
       "무제한 쇼츠 스크립트 · 썸네일 · 대본 자동 생성",
       "시니어 전담 코치와 1:1 수익 설계 세션",
@@ -56,6 +50,7 @@ const plans = [
     to: "mailto:hello@ddeundeun.ai",
     highlight: false,
     badge: "팀 전용",
+    monthlyCredits: 50000,
     features: [
       "팀원 5명까지 역할 관리 및 공동 작업",
       "브랜드별 수익 템플릿 라이브러리 제공",
@@ -115,6 +110,23 @@ export const meta: MetaFunction = () => {
 };
 
 export default function PricingPage() {
+  const fetcher = useFetcher();
+
+  const handleSubscribe = (planName: string) => {
+    const plan = plans.find((p) => p.name === planName);
+    if (!plan || plan.to.startsWith("mailto:")) return;
+
+    const formData = new FormData();
+    formData.append("planName", planName);
+    formData.append("planPrice", plan.price);
+    formData.append("planInterval", "monthly");
+
+    fetcher.submit(formData, {
+      method: "post",
+      action: "/pricing/subscribe",
+    });
+  };
+
   return (
     <div className="bg-background text-foreground">
       <section className="relative overflow-hidden border-b">
@@ -223,73 +235,20 @@ export default function PricingPage() {
       <section className="mx-auto max-w-6xl px-6 py-16 md:py-20">
         <div className="grid gap-6 lg:grid-cols-3">
           {plans.map((plan) => (
-            <Card
+            <PricingPlanCard
               key={plan.name}
-              className={cn(
-                "relative flex flex-col justify-between border-muted",
-                plan.highlight &&
-                  "border-primary/70 shadow-lg shadow-primary/10 ring-2 ring-primary/10"
-              )}
-            >
-              {plan.badge ? (
-                <span
-                  className={cn(
-                    "absolute right-4 top-4 inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary",
-                    plan.highlight && "bg-primary text-primary-foreground"
-                  )}
-                >
-                  {plan.badge}
-                </span>
-              ) : null}
-              <CardHeader className="items-start gap-4">
-                <CardTitle className="text-2xl font-bold">
-                  {plan.name}
-                </CardTitle>
-                <CardDescription className="text-sm leading-relaxed">
-                  {plan.description}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="text-left">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-extrabold">
-                      {plan.price}
-                    </span>
-                    <span className="text-muted-foreground text-sm">
-                      {plan.period}
-                    </span>
-                  </div>
-                </div>
-                <ul className="space-y-3 text-sm">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-2">
-                      <Check className="size-4 text-primary" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-              <CardFooter>
-                {plan.to.startsWith("mailto:") ? (
-                  <Button
-                    asChild
-                    className="w-full"
-                    size="lg"
-                    variant="outline"
-                  >
-                    <a href={plan.to}>{plan.cta}</a>
-                  </Button>
-                ) : (
-                  <Button
-                    asChild
-                    className={cn("w-full", plan.highlight && "bg-primary")}
-                    size="lg"
-                  >
-                    <Link to={plan.to}>{plan.cta}</Link>
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
+              name={plan.name}
+              price={plan.price}
+              period={plan.period}
+              description={plan.description}
+              cta={plan.cta}
+              to={plan.to}
+              highlight={plan.highlight}
+              badge={plan.badge}
+              features={plan.features}
+              monthlyCredits={plan.monthlyCredits}
+              onSubscribe={handleSubscribe}
+            />
           ))}
         </div>
       </section>

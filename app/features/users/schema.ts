@@ -51,6 +51,22 @@ export const billingInvoiceStatusEnum = pgEnum("billing_invoice_status", [
   "void",
 ]);
 
+export const creditTransactionTypeEnum = pgEnum("credit_transaction_type", [
+  "granted",      // 지급 (구독 갱신 시)
+  "consumed",     // 소비 (워크플로우 실행 시)
+  "refunded",     // 환불
+  "expired",      // 만료
+  "manual_adjust", // 수동 조정
+]);
+
+export const creditUsageStatusEnum = pgEnum("credit_usage_status", [
+  "pending",      // 대기 중
+  "processing",  // 처리 중
+  "completed",   // 완료
+  "failed",       // 실패
+  "refunded",     // 환불됨
+]);
+
 export const profiles = pgTable(
   "profiles",
   {
@@ -93,6 +109,11 @@ export const profiles = pgTable(
     followersCount: integer("followers_count").default(0).notNull(),
     followingCount: integer("following_count").default(0).notNull(),
     projectCount: integer("project_count").default(0).notNull(),
+    
+    // 크레딧 관련 필드
+    creditBalance: integer("credit_balance").default(0).notNull(),
+    creditLastGrantedAt: timestamp("credit_last_granted_at", { withTimezone: true }),
+    creditMonthlyAmount: integer("credit_monthly_amount").default(0).notNull(),
   },
   (table) => ({
     slugIdx: uniqueIndex("profiles_slug_unique").on(table.slug),
@@ -199,6 +220,9 @@ export const profileBillingPlans = pgTable(
       .$type<string[]>()
       .default(sql`'[]'::jsonb`)
       .notNull(),
+    // 크레딧 관련 필드
+    monthlyCredits: integer("monthly_credits").default(0).notNull(),
+    creditOverageRate: numeric("credit_overage_rate"),
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
       .default(sql`'{}'::jsonb`)
@@ -474,3 +498,81 @@ export type NewMessageEntry = typeof messageEntries.$inferInsert;
 
 export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;
+
+// 크레딧 관련 테이블
+export const profileCreditTransactions = pgTable(
+  "profile_credit_transactions",
+  {
+    id: serial("id").primaryKey(),
+    transactionId: uuid("transaction_id").defaultRandom().notNull(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    type: creditTransactionTypeEnum("type").notNull(),
+    amount: integer("amount").notNull(), // 양수: 지급, 음수: 차감
+    balanceBefore: integer("balance_before").notNull(),
+    balanceAfter: integer("balance_after").notNull(),
+    description: text("description"),
+    relatedProjectId: uuid("related_project_id"),
+    relatedStepKey: text("related_step_key"),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    transactionIdIdx: uniqueIndex("credit_transactions_transaction_id_unique").on(
+      table.transactionId
+    ),
+    profileCreatedIdx: uniqueIndex("credit_transactions_profile_created_unique").on(
+      table.profileId,
+      table.createdAt
+    ),
+  })
+);
+
+export const profileCreditUsages = pgTable(
+  "profile_credit_usages",
+  {
+    id: serial("id").primaryKey(),
+    usageId: uuid("usage_id").defaultRandom().notNull(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id").notNull(),
+    stepKey: text("step_key").notNull(),
+    creditsUsed: integer("credits_used").notNull(),
+    status: creditUsageStatusEnum("status").default("pending").notNull(),
+    workflowExecutionId: text("workflow_execution_id"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    usageIdIdx: uniqueIndex("credit_usages_usage_id_unique").on(
+      table.usageId
+    ),
+    projectStepIdx: uniqueIndex("credit_usages_project_step_unique").on(
+      table.projectId,
+      table.stepKey
+    ),
+  })
+);
+
+export type ProfileCreditTransaction = typeof profileCreditTransactions.$inferSelect;
+export type NewProfileCreditTransaction = typeof profileCreditTransactions.$inferInsert;
+
+export type ProfileCreditUsage = typeof profileCreditUsages.$inferSelect;
+export type NewProfileCreditUsage = typeof profileCreditUsages.$inferInsert;

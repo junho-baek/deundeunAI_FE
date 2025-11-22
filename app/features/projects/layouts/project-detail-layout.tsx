@@ -1,11 +1,12 @@
 import * as React from "react";
 import {
   Outlet,
-  type ClientLoaderFunctionArgs,
   type LoaderFunctionArgs,
   useFetcher,
   useLoaderData,
   useParams,
+  Link,
+  useSearchParams,
 } from "react-router";
 import type { Route } from "./+types/project-detail-layout";
 import ChatForm, { type ChatFormData } from "~/common/components/chat-form";
@@ -16,6 +17,11 @@ import ChatInitForm, {
 import ChatConfirmCard from "~/features/projects/components/chat-confirm-card";
 import { Typography } from "~/common/components/typography";
 import { Separator } from "~/common/components/ui/separator";
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription,
+} from "~/common/components/ui/alert";
 import {
   getProjectByProjectId,
   getProjectSteps,
@@ -61,7 +67,12 @@ export type ProjectDetailContextValue = {
   done: DoneState;
   setDone: React.Dispatch<React.SetStateAction<DoneState>>;
   narrationSegments: NarrationSegment[];
-  actionData?: { error?: string };
+  actionData?: {
+    error?: string;
+    creditBalance?: number;
+    requiredCredits?: number;
+    rechargeUrl?: string;
+  };
   isSubmitting?: boolean;
 };
 
@@ -142,42 +153,6 @@ export const loader = async ({
     project,
     projectSteps,
     ownerSlug,
-  };
-};
-
-export const clientLoader = ({
-  context,
-}: ClientLoaderFunctionArgs): LoaderData => {
-  void context;
-
-  if (typeof window === "undefined") {
-    return {
-      initialChatPayload: null,
-      project: null,
-      projectSteps: [],
-      ownerSlug: null,
-    };
-  }
-
-  const currentUrl = new URL(window.location.href);
-
-  // 쿼리 파라미터 처리
-  const keyword = currentUrl.searchParams.get("keyword");
-  const aspectRatio = currentUrl.searchParams.get("aspectRatio");
-  const initialChatPayload =
-    keyword && keyword.trim() ? extractInitialChatPayload(currentUrl) : null;
-
-  if (initialChatPayload) {
-    currentUrl.searchParams.delete("keyword");
-    currentUrl.searchParams.delete("aspectRatio");
-    window.history.replaceState(window.history.state, "", currentUrl.href);
-  }
-
-  return {
-    initialChatPayload,
-    project: null,
-    projectSteps: [],
-    ownerSlug: null,
   };
 };
 
@@ -517,6 +492,26 @@ export default function ProjectDetailLayout({
     loaderData as LoaderData | null | undefined
   );
   const { messages, handleSubmit, actionData, isSubmitting } = contextValue;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const loaderDataFromHook = useLoaderData<LoaderData | null>();
+  const currentLoaderData = loaderData ?? loaderDataFromHook;
+  const initialChatPayload = currentLoaderData?.initialChatPayload;
+
+  // 쿼리 파라미터가 처리되었으면 URL에서 제거 (SSR에서 처리된 경우 클라이언트에서 정리)
+  React.useEffect(() => {
+    if (initialChatPayload && typeof window !== "undefined") {
+      const currentUrl = new URL(window.location.href);
+      const hasKeyword = currentUrl.searchParams.has("keyword");
+      const hasAspectRatio = currentUrl.searchParams.has("aspectRatio");
+
+      if (hasKeyword || hasAspectRatio) {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("keyword");
+        newParams.delete("aspectRatio");
+        setSearchParams(newParams, { replace: true });
+      }
+    }
+  }, [initialChatPayload, searchParams, setSearchParams]);
 
   return (
     <ProjectDetailContext.Provider value={contextValue}>
@@ -550,11 +545,23 @@ export default function ProjectDetailLayout({
               <div className="bg-background/70 backdrop-blur">
                 <Separator className="my-4" />
                 {actionData?.error && (
-                  <div className="mb-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                    <p className="text-sm text-red-600 dark:text-red-400">
-                      {actionData.error}
-                    </p>
-                  </div>
+                  <Alert
+                    variant="destructive"
+                    className="mb-4 bg-destructive/10"
+                  >
+                    <AlertTitle>크레딧 부족</AlertTitle>
+                    <AlertDescription className="flex flex-col gap-2">
+                      <span>{actionData.error}</span>
+                      {actionData.rechargeUrl && (
+                        <Link
+                          to={actionData.rechargeUrl}
+                          className="text-primary underline hover:text-primary/80"
+                        >
+                          크레딧 충전하기 →
+                        </Link>
+                      )}
+                    </AlertDescription>
+                  </Alert>
                 )}
                 <ChatForm onSubmit={handleSubmit} disabled={isSubmitting} />
               </div>

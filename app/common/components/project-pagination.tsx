@@ -15,8 +15,9 @@ export default function ProjectPagination({
   const page = currentPage ?? Number(searchParams.get("page") ?? 1);
 
   const onClick = (newPage: number) => {
-    searchParams.set("page", newPage.toString());
-    setSearchParams(searchParams, { preventScrollReset: true });
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("page", newPage.toString());
+    setSearchParams(newParams, { preventScrollReset: true });
   };
 
   if (totalPages <= 1) return null;

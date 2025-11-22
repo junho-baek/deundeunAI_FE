@@ -12,6 +12,9 @@ import {
   getProfileSettingsData,
   type ProfileSettingsData,
 } from "~/features/users/services/profile-settings-service";
+import { CreditBalance } from "~/common/components/credit-balance";
+import { makeSSRClient } from "~/lib/supa-client";
+import { getCreditBalance, getUserById } from "~/features/users/queries";
 
 const FALLBACK_PROFILE_DATA: ProfileSettingsData = {
   profileSummary: {
@@ -79,18 +82,55 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export async function loader() {
+export async function loader({ request }: { request: Request }) {
   try {
     const data = await getProfileSettingsData();
-    return { data };
+
+    // 크레딧 잔액 조회
+    let creditBalance = 0;
+    try {
+      const { client } = makeSSRClient(request);
+      const {
+        data: { user },
+      } = await client.auth.getUser();
+
+      if (user) {
+        try {
+          const profile = await getUserById(client, { id: user.id });
+          if (profile?.id) {
+            const balance = await getCreditBalance(client, profile.id);
+            creditBalance = balance ?? 0;
+          }
+        } catch (error: any) {
+          // Rate limit 에러인 경우 재시도하지 않도록 처리
+          if (
+            error?.status === 429 ||
+            error?.code === "over_request_rate_limit"
+          ) {
+            console.error("Rate limit 도달 - 프로필 조회 건너뜀:", error);
+          } else {
+            console.error("프로필 조회 실패:", error);
+          }
+        }
+      }
+    } catch (error: any) {
+      // Rate limit 에러인 경우 재시도하지 않도록 처리
+      if (error?.status === 429 || error?.code === "over_request_rate_limit") {
+        console.error("Rate limit 도달 - 크레딧 잔액 조회 건너뜀:", error);
+      } else {
+        console.error("크레딧 잔액 조회 실패:", error);
+      }
+    }
+
+    return { data, creditBalance };
   } catch (error) {
     console.error("프로필 데이터 로딩 실패:", error);
-    return { data: FALLBACK_PROFILE_DATA };
+    return { data: FALLBACK_PROFILE_DATA, creditBalance: 0 };
   }
 }
 
 export default function ProfilePage() {
-  const { data } = useLoaderData<typeof loader>();
+  const { data, creditBalance } = useLoaderData<typeof loader>();
   const avatarFallback =
     (data.profileSummary.name ?? "").replace(/\s/g, "").slice(0, 2) || "DU";
 
@@ -148,6 +188,10 @@ export default function ProfilePage() {
             />
 
             <div className="flex flex-col gap-6">
+              <CreditBalance
+                currentBalance={creditBalance}
+                showRechargeButton={true}
+              />
               <ProfilePlanActivityCard
                 cardTitle="플랜 & 활동 요약"
                 cardDescription="프로젝트 자동화와 수익 보장형 프리셋 사용 현황입니다."

@@ -13,7 +13,7 @@ import "./app.css";
 import Navigation from "./common/components/navigation";
 import { cn } from "./lib/utils";
 import { makeSSRClient } from "./lib/supa-client";
-import { getUserById } from "./features/users/queries";
+import { getUserById, getCreditBalance } from "./features/users/queries";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -56,19 +56,41 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
     if (user) {
       try {
         const profile = await getUserById(client, { id: user.id });
-        return { user, profile };
-      } catch (error) {
+        let creditBalance = 0;
+        
+        if (profile?.id) {
+          try {
+            const balance = await getCreditBalance(client, profile.id);
+            creditBalance = balance ?? 0;
+          } catch (error) {
+            // 크레딧 조회 실패는 치명적이지 않음
+            console.error("크레딧 잔액 조회 실패:", error);
+          }
+        }
+        
+        return { user, profile, creditBalance };
+      } catch (error: any) {
+        // Rate limit 에러인 경우 재시도하지 않도록 처리
+        if (error?.status === 429 || error?.code === "over_request_rate_limit") {
+          console.error("Rate limit 도달 - 프로필 조회 건너뜀:", error);
+          return { user, profile: null, creditBalance: 0 };
+        }
         // 프로필이 없을 수 있음 (아직 생성되지 않았을 수 있음)
         console.error("프로필 조회 실패:", error);
-        return { user, profile: null };
+        return { user, profile: null, creditBalance: 0 };
       }
     }
     
-    return { user: null, profile: null };
-  } catch (error) {
+    return { user: null, profile: null, creditBalance: 0 };
+  } catch (error: any) {
+    // Rate limit 에러인 경우 재시도하지 않도록 처리
+    if (error?.status === 429 || error?.code === "over_request_rate_limit") {
+      console.error("Rate limit 도달 - 인증 확인 건너뜀:", error);
+      return { user: null, profile: null, creditBalance: 0 };
+    }
     // 인증 확인 실패 시 null 반환 (인증되지 않은 상태로 처리)
     console.error("사용자 인증 상태 확인 실패:", error);
-    return { user: null, profile: null };
+    return { user: null, profile: null, creditBalance: 0 };
   }
 };
 
@@ -106,6 +128,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
             username={loaderData?.profile?.slug || undefined}
             avatar={loaderData?.profile?.avatar_url || undefined}
             name={loaderData?.profile?.name || undefined}
+            creditBalance={loaderData?.creditBalance || 0}
             hasNotifications={true}
             hasMessages={true}
             compact={isAuth}

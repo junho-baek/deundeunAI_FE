@@ -71,7 +71,7 @@ export async function getProfileSlug(
  * 사용자 ID로 프로필 정보 조회
  * @param client - Supabase 클라이언트
  * @param id - 사용자 ID (auth.users.id)
- * @returns 프로필 객체
+ * @returns 프로필 객체 또는 null (프로필이 없을 경우)
  */
 export const getUserById = async (
   client: SupabaseClient<Database>,
@@ -89,6 +89,11 @@ export const getUserById = async (
     .single();
 
   if (error) {
+    // 프로필이 없는 경우 (PGRST116: no rows returned) null 반환
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    // 다른 에러는 throw (예: 네트워크 에러, 권한 에러 등)
     throw error;
   }
 
@@ -444,4 +449,162 @@ export async function getMessageEntries(threadId: number, limit: number = 100) {
   }
 
   return data ?? [];
+}
+
+/**
+ * 크레딧 차감 (RPC 함수 사용 - 원자적 연산 보장)
+ * 동시성 문제를 해결하기 위해 Supabase RPC 함수를 사용합니다.
+ */
+export async function deductCreditsRPC(
+  client: SupabaseClient<Database>,
+  {
+    profileId,
+    amount,
+    description,
+    relatedProjectId,
+    relatedStepKey,
+    metadata,
+  }: {
+    profileId: string;
+    amount: number;
+    description?: string;
+    relatedProjectId?: string;
+    relatedStepKey?: string;
+    metadata?: Record<string, unknown>;
+  }
+): Promise<{
+  success: boolean;
+  balance?: number;
+  error?: string;
+  transaction_id?: string;
+  required?: number;
+}> {
+  try {
+    const { data, error } = await client.rpc("deduct_credits", {
+      p_profile_id: profileId,
+      p_amount: amount,
+      p_description: description || null,
+      p_related_project_id: relatedProjectId || null,
+      p_related_step_key: relatedStepKey || null,
+      p_metadata: metadata || {},
+    });
+
+    if (error) {
+      console.error("크레딧 차감 RPC 호출 실패:", error);
+      return {
+        success: false,
+        error: error.message || "크레딧 차감에 실패했습니다.",
+      };
+    }
+
+    // RPC 함수는 JSONB를 반환하므로 파싱
+    if (typeof data === "object" && data !== null) {
+      return {
+        success: (data as any).success || false,
+        balance: (data as any).balance,
+        error: (data as any).error,
+        transaction_id: (data as any).transaction_id,
+        required: (data as any).required,
+      };
+    }
+
+    return {
+      success: false,
+      error: "예상치 못한 응답 형식입니다.",
+    };
+  } catch (error) {
+    console.error("크레딧 차감 중 예외 발생:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+    };
+  }
+}
+
+/**
+ * 크레딧 지급 (RPC 함수 사용 - 원자적 연산 보장)
+ * 구독 갱신 시 매달 크레딧을 지급합니다.
+ */
+export async function grantCreditsRPC(
+  client: SupabaseClient<Database>,
+  {
+    profileId,
+    amount,
+    description,
+    metadata,
+  }: {
+    profileId: string;
+    amount: number;
+    description?: string;
+    metadata?: Record<string, unknown>;
+  }
+): Promise<{
+  success: boolean;
+  balance?: number;
+  error?: string;
+  transaction_id?: string;
+}> {
+  try {
+    const { data, error } = await client.rpc("grant_credits", {
+      p_profile_id: profileId,
+      p_amount: amount,
+      p_description: description || null,
+      p_metadata: metadata || {},
+    });
+
+    if (error) {
+      console.error("크레딧 지급 RPC 호출 실패:", error);
+      return {
+        success: false,
+        error: error.message || "크레딧 지급에 실패했습니다.",
+      };
+    }
+
+    // RPC 함수는 JSONB를 반환하므로 파싱
+    if (typeof data === "object" && data !== null) {
+      return {
+        success: (data as any).success || false,
+        balance: (data as any).balance,
+        error: (data as any).error,
+        transaction_id: (data as any).transaction_id,
+      };
+    }
+
+    return {
+      success: false,
+      error: "예상치 못한 응답 형식입니다.",
+    };
+  } catch (error) {
+    console.error("크레딧 지급 중 예외 발생:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+    };
+  }
+}
+
+/**
+ * 크레딧 잔액 조회
+ */
+export async function getCreditBalance(
+  client: SupabaseClient<Database>,
+  profileId: string
+): Promise<number | null> {
+  try {
+    const { data, error } = await client
+      .from("profiles")
+      .select("credit_balance")
+      .eq("id", profileId)
+      .single();
+
+    if (error) {
+      console.error("크레딧 잔액 조회 실패:", error);
+      return null;
+    }
+
+    return data?.credit_balance ?? null;
+  } catch (error) {
+    console.error("크레딧 잔액 조회 중 예외 발생:", error);
+    return null;
+  }
 }

@@ -85,13 +85,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
       try {
         const profile = await getUserById(client, { id: user.id });
         ownerProfileId = profile?.id;
-      } catch (error) {
-        console.error("프로필 조회 실패:", error);
+      } catch (error: any) {
+        // Rate limit 에러인 경우 재시도하지 않도록 처리
+        if (error?.status === 429 || error?.code === "over_request_rate_limit") {
+          console.error("Rate limit 도달 - 프로필 조회 건너뜀:", error);
+          // 프로필 없이 계속 진행 (빈 목록 반환)
+        } else {
+          console.error("프로필 조회 실패:", error);
+        }
         // 프로필이 없어도 계속 진행 (빈 목록 반환)
       }
     }
 
-    // 병렬로 프로젝트 목록과 총 페이지 수 조회
+    // 병렬로 프로젝트 목록과 총 페이지 수 조회 (동일한 필터링 적용)
     const [projects, totalPages] = await Promise.all([
       getProjects(client, {
         ownerProfileId,
@@ -101,7 +107,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
         keyword: parsedData.keyword,
         status: parsedData.status,
       }),
-      getProjectPages(client, ownerProfileId),
+      getProjectPages(client, {
+        ownerProfileId,
+        period: parsedData.period,
+        keyword: parsedData.keyword,
+        status: parsedData.status,
+      }),
     ]);
 
     return {
@@ -131,32 +142,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     };
   }
 }
-
-/**
- * 프로젝트 목록 데이터 로더 (클라이언트 사이드)
- * 서버 데이터를 재사용하고 클라이언트 전용 작업을 수행합니다
- */
-export const clientLoader = async ({
-  serverLoader,
-}: Route.ClientLoaderArgs) => {
-  // 서버 데이터 가져오기
-  const serverData = await serverLoader();
-
-  // 클라이언트에서 추가 작업 수행
-  if (typeof window !== "undefined") {
-    // Analytics 추적 (예시)
-    // analytics.track("project_list_viewed", {
-    //   projectCount: serverData.projects.length,
-    //   timestamp: new Date().toISOString(),
-    // });
-
-    // 클라이언트 전용 데이터 추가 (예: 최근 본 프로젝트, 필터링 등)
-    // const recentViewedProjects = getRecentViewedProjects();
-  }
-
-  // 서버 데이터 그대로 반환
-  return serverData;
-};
 
 /**
  * 숫자를 포맷팅하는 헬퍼 함수

@@ -110,8 +110,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
         const { getUserById } = await import("~/features/users/queries");
         const profile = await getUserById(client, { id: user.id });
         ownerProfileId = profile?.id;
-      } catch (error) {
-        console.error("프로필 조회 실패:", error);
+      } catch (error: any) {
+        // Rate limit 에러인 경우 재시도하지 않도록 처리
+        if (
+          error?.status === 429 ||
+          error?.code === "over_request_rate_limit"
+        ) {
+          console.error("Rate limit 도달 - 프로필 조회 건너뜀:", error);
+          // 프로필 없이 계속 진행
+        } else {
+          console.error("프로필 조회 실패:", error);
+        }
         // 프로필이 없어도 계속 진행
       }
     }
@@ -143,30 +152,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     };
   }
 }
-
-/**
- * 대시보드 데이터 로더 (클라이언트 사이드)
- * 서버 데이터를 재사용하고 클라이언트 전용 작업(analytics 등)을 수행합니다
- */
-export const clientLoader = async ({
-  serverLoader,
-}: Route.ClientLoaderArgs) => {
-  // 서버 데이터 가져오기
-  const serverData = await serverLoader();
-
-  // 클라이언트에서 추가 작업 수행
-  if (typeof window !== "undefined") {
-    // Analytics 추적 (예시)
-    // analytics.track("dashboard_viewed", {
-    //   timestamp: new Date().toISOString(),
-    // });
-    // 클라이언트 전용 데이터 추가 (예: 사용자 설정, 캐싱 등)
-    // const userPreferences = localStorage.getItem("dashboard_preferences");
-  }
-
-  // 서버 데이터 그대로 반환 (또는 수정된 데이터 반환)
-  return serverData;
-};
 
 /**
  * 숫자를 포맷팅하는 헬퍼 함수

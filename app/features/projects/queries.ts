@@ -136,22 +136,82 @@ export async function getProjects(
 }
 
 /**
- * 프로젝트 총 페이지 수 계산
+ * 프로젝트 총 페이지 수 계산 (필터링 옵션 지원)
  * @param client - Supabase 클라이언트
- * @param ownerProfileId - 프로젝트 소유자 프로필 ID (선택사항)
+ * @param options - 필터링 옵션 (getProjects와 동일한 필터링 적용)
  * @returns 총 페이지 수
  */
 export async function getProjectPages(
   client: SupabaseClient<Database>,
-  ownerProfileId?: string
+  {
+    ownerProfileId,
+    period = "all",
+    keyword,
+    status,
+  }: {
+    ownerProfileId?: string;
+    period?: "all" | "today" | "week" | "month" | "year";
+    keyword?: string;
+    status?: string;
+  } = {}
 ) {
   try {
+    // getProjects와 동일한 필터링을 적용하기 위해 project_list_view 사용
     let query = client
-      .from("projects")
+      .from("project_list_view")
       .select("project_id", { count: "exact", head: true });
 
+    // 소유자 필터링
     if (ownerProfileId) {
       query = query.eq("owner_profile_id", ownerProfileId);
+    }
+
+    // 기간 필터링
+    if (period !== "all") {
+      const today = new Date();
+      let startDate: Date;
+
+      switch (period) {
+        case "today": {
+          startDate = new Date(today);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        }
+        case "week": {
+          startDate = new Date(today);
+          const day = startDate.getDay();
+          const diff = startDate.getDate() - day + (day === 0 ? -6 : 1); // 월요일
+          startDate.setDate(diff);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        }
+        case "month": {
+          startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        }
+        case "year": {
+          startDate = new Date(today.getFullYear(), 0, 1);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        }
+        default:
+          startDate = today;
+      }
+
+      query = query.gte("created_at", startDate.toISOString());
+    }
+
+    // 키워드 검색 (제목 또는 설명)
+    if (keyword) {
+      query = query.or(
+        `title.ilike.%${keyword}%,description.ilike.%${keyword}%`
+      );
+    }
+
+    // 상태 필터링
+    if (status) {
+      query = query.eq("status", status);
     }
 
     const { count, error } = await query;

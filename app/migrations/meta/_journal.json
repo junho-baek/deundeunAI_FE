@@ -50,6 +50,13 @@
       "when": 1763791108585,
       "tag": "0006_even_george_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1763850049509,
+      "tag": "0007_flowery_james_howlett",
+      "breakpoints": true
     }
   ]
 }

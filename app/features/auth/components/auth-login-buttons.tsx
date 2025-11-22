@@ -64,22 +64,22 @@ function SocialLoginButtons() {
       <AuthLoginButton
         logo={<GoogleLogo className="size-4" />}
         label="Google"
-        href="/auth/social/start/google"
+        href="/auth/social/google/start"
       />
       <AuthLoginButton
         logo={<GithubLogo className="size-4 scale-125 dark:text-white" />}
         label="Github"
-        href="/auth/social/start/github"
+        href="/auth/social/github/start"
       />
       <AuthLoginButton
         logo={<AppleLogo className="size-4 scale-150 dark:text-white" />}
         label="Apple"
-        href="/auth/social/start/apple"
+        href="/auth/social/apple/start"
       />
       <AuthLoginButton
         logo={<KakaoLogo className="size-4 scale-125 dark:text-yellow-300" />}
         label="Kakao"
-        href="/auth/social/start/kakao"
+        href="/auth/social/kakao/start"
       />
     </>
   );

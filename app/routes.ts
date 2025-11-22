@@ -17,11 +17,21 @@ export default [
       route("login", "features/auth/pages/login-page.tsx"),
       route("join", "features/auth/pages/join-page.tsx"),
     ]),
+    // 소셜 로그인 라우트 (레이아웃 없이 직접 처리)
+    ...prefix("social", [
+      ...prefix(":provider", [
+        route("start", "features/auth/pages/social-start-page.tsx"),
+        route("complete", "features/auth/pages/social-complete-page.tsx"),
+      ]),
+    ]),
   ]),
 
   route("/logout", "features/auth/pages/logout-page.tsx"),
 
-  route("/pricing", "features/pricing/pages/pricing-page.tsx"),
+  ...prefix("/pricing", [
+    index("features/pricing/pages/pricing-page.tsx"),
+    route("subscribe", "features/pricing/pages/subscribe-action.tsx"),
+  ]),
 
   // ───────────────
   // Public User Profiles
