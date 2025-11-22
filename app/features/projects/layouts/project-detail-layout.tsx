@@ -16,8 +16,12 @@ import ChatInitForm, {
 import ChatConfirmCard from "~/features/projects/components/chat-confirm-card";
 import { Typography } from "~/common/components/typography";
 import { Separator } from "~/common/components/ui/separator";
-import { getProjectByProjectId, getProjectSteps } from "~/features/projects/queries";
+import {
+  getProjectByProjectId,
+  getProjectSteps,
+} from "~/features/projects/queries";
 import { getProfileSlug } from "~/features/users/queries";
+import { makeSSRClient } from "~/lib/supa-client";
 import { useProjectStepStatus } from "../hooks/use-project-step-status";
 
 type MessageAttachment = { name: string; size?: number };
@@ -57,6 +61,8 @@ export type ProjectDetailContextValue = {
   done: DoneState;
   setDone: React.Dispatch<React.SetStateAction<DoneState>>;
   narrationSegments: NarrationSegment[];
+  actionData?: { error?: string };
+  isSubmitting?: boolean;
 };
 
 const ProjectDetailContext =
@@ -65,6 +71,7 @@ const ProjectDetailContext =
 type LoaderData = {
   initialChatPayload: ChatFormData | null;
   project: Awaited<ReturnType<typeof getProjectByProjectId>> | null;
+  projectSteps: Awaited<ReturnType<typeof getProjectSteps>>;
   ownerSlug: string | null;
 };
 
@@ -109,18 +116,20 @@ export const loader = async ({
   const initialChatPayload =
     keyword && keyword.trim() ? extractInitialChatPayload(url) : null;
 
+  const { client } = makeSSRClient(request);
+
   // 프로젝트 데이터 조회
   let project = null;
   let projectSteps: Awaited<ReturnType<typeof getProjectSteps>> = [];
   let ownerSlug: string | null = null;
   if (projectId && projectId !== "create") {
     try {
-      project = await getProjectByProjectId(projectId);
-      projectSteps = await getProjectSteps(projectId);
-      
+      project = await getProjectByProjectId(client, projectId);
+      projectSteps = await getProjectSteps(client, projectId);
+
       // owner slug 조회 (공개 프로필 링크용)
       if (project?.owner_profile_id) {
-        ownerSlug = await getProfileSlug(project.owner_profile_id);
+        ownerSlug = await getProfileSlug(client, project.owner_profile_id);
       }
     } catch (error) {
       console.error("프로젝트 로드 실패:", error);
@@ -142,7 +151,12 @@ export const clientLoader = ({
   void context;
 
   if (typeof window === "undefined") {
-    return { initialChatPayload: null, project: null };
+    return {
+      initialChatPayload: null,
+      project: null,
+      projectSteps: [],
+      ownerSlug: null,
+    };
   }
 
   const currentUrl = new URL(window.location.href);
@@ -159,7 +173,12 @@ export const clientLoader = ({
     window.history.replaceState(window.history.state, "", currentUrl.href);
   }
 
-  return { initialChatPayload, project: null, projectSteps: [], ownerSlug: null };
+  return {
+    initialChatPayload,
+    project: null,
+    projectSteps: [],
+    ownerSlug: null,
+  };
 };
 
 function createConversationEntries({
@@ -203,14 +222,13 @@ function useProjectDetailState(
   const initialChatPayload = loaderData?.initialChatPayload ?? null;
 
   // 프로젝트 단계 상태 폴링 및 동기화
-  const {
-    getStepLoading,
-    getStepDone,
-    stepStatusMap,
-  } = useProjectStepStatus(projectId, {
-    enabled: !!projectId && projectId !== "create",
-    interval: 3000, // 3초마다 폴링
-  });
+  const { getStepLoading, getStepDone, stepStatusMap } = useProjectStepStatus(
+    projectId,
+    {
+      enabled: !!projectId && projectId !== "create",
+      interval: 3000, // 3초마다 폴링
+    }
+  );
 
   const initialMessages = React.useMemo(
     () =>
@@ -256,23 +274,29 @@ function useProjectDetailState(
     []
   );
   // DB 상태와 동기화된 loading/done 상태
-  const dbLoading = React.useMemo<LoadingState>(() => ({
-    brief: getStepLoading("brief"),
-    script: getStepLoading("script"),
-    narration: getStepLoading("narration"),
-    images: getStepLoading("images"),
-    videos: getStepLoading("videos"),
-    final: getStepLoading("final"),
-  }), [getStepLoading]);
+  const dbLoading = React.useMemo<LoadingState>(
+    () => ({
+      brief: getStepLoading("brief"),
+      script: getStepLoading("script"),
+      narration: getStepLoading("narration"),
+      images: getStepLoading("images"),
+      videos: getStepLoading("videos"),
+      final: getStepLoading("final"),
+    }),
+    [getStepLoading]
+  );
 
-  const dbDone = React.useMemo<DoneState>(() => ({
-    brief: getStepDone("brief"),
-    script: getStepDone("script"),
-    narration: getStepDone("narration"),
-    images: getStepDone("images"),
-    videos: getStepDone("videos"),
-    final: getStepDone("final"),
-  }), [getStepDone]);
+  const dbDone = React.useMemo<DoneState>(
+    () => ({
+      brief: getStepDone("brief"),
+      script: getStepDone("script"),
+      narration: getStepDone("narration"),
+      images: getStepDone("images"),
+      videos: getStepDone("videos"),
+      final: getStepDone("final"),
+    }),
+    [getStepDone]
+  );
 
   // 수동으로 상태를 업데이트할 수 있는 함수들 (필요시 사용)
   const [manualLoading, setManualLoading] = React.useState<LoadingState>({
@@ -293,23 +317,29 @@ function useProjectDetailState(
   });
 
   // DB 상태와 수동 상태를 병합 (수동 상태가 우선)
-  const loading = React.useMemo<LoadingState>(() => ({
-    brief: manualLoading.brief || dbLoading.brief,
-    script: manualLoading.script || dbLoading.script,
-    narration: manualLoading.narration || dbLoading.narration,
-    images: manualLoading.images || dbLoading.images,
-    videos: manualLoading.videos || dbLoading.videos,
-    final: manualLoading.final || dbLoading.final,
-  }), [manualLoading, dbLoading]);
+  const loading = React.useMemo<LoadingState>(
+    () => ({
+      brief: manualLoading.brief || dbLoading.brief,
+      script: manualLoading.script || dbLoading.script,
+      narration: manualLoading.narration || dbLoading.narration,
+      images: manualLoading.images || dbLoading.images,
+      videos: manualLoading.videos || dbLoading.videos,
+      final: manualLoading.final || dbLoading.final,
+    }),
+    [manualLoading, dbLoading]
+  );
 
-  const done = React.useMemo<DoneState>(() => ({
-    brief: manualDone.brief || dbDone.brief,
-    script: manualDone.script || dbDone.script,
-    narration: manualDone.narration || dbDone.narration,
-    images: manualDone.images || dbDone.images,
-    videos: manualDone.videos || dbDone.videos,
-    final: manualDone.final || dbDone.final,
-  }), [manualDone, dbDone]);
+  const done = React.useMemo<DoneState>(
+    () => ({
+      brief: manualDone.brief || dbDone.brief,
+      script: manualDone.script || dbDone.script,
+      narration: manualDone.narration || dbDone.narration,
+      images: manualDone.images || dbDone.images,
+      videos: manualDone.videos || dbDone.videos,
+      final: manualDone.final || dbDone.final,
+    }),
+    [manualDone, dbDone]
+  );
 
   const toggleSelectImage = React.useCallback((id: number) => {
     setSelectedImages((prev) =>
@@ -394,7 +424,7 @@ function useProjectDetailState(
   }, []);
 
   const fetcher = useFetcher();
-  
+
   const handleSubmit = React.useCallback(
     async (payload: ChatFormData) => {
       // projectId가 "create"이거나 없으면 프로젝트 생성 action 호출
@@ -408,7 +438,7 @@ function useProjectDetailState(
         for (const image of payload.images) {
           formData.append("images", image);
         }
-        
+
         fetcher.submit(formData, {
           method: "post",
           action: "/my/dashboard/project/create",
@@ -423,6 +453,9 @@ function useProjectDetailState(
     },
     [appendConversation, projectId, fetcher]
   );
+
+  const actionData = fetcher.data as { error?: string } | undefined;
+  const isSubmitting = fetcher.state === "submitting";
 
   return React.useMemo(
     () => ({
@@ -440,6 +473,8 @@ function useProjectDetailState(
       done,
       setDone: setManualDone,
       narrationSegments,
+      actionData,
+      isSubmitting,
     }),
     [
       done,
@@ -454,6 +489,8 @@ function useProjectDetailState(
       toggleSelectImage,
       toggleSelectVideo,
       videoTimelines,
+      actionData,
+      isSubmitting,
     ]
   );
 }
@@ -479,7 +516,7 @@ export default function ProjectDetailLayout({
   const contextValue = useProjectDetailState(
     loaderData as LoaderData | null | undefined
   );
-  const { messages, handleSubmit } = contextValue;
+  const { messages, handleSubmit, actionData, isSubmitting } = contextValue;
 
   return (
     <ProjectDetailContext.Provider value={contextValue}>
@@ -512,7 +549,14 @@ export default function ProjectDetailLayout({
               </div>
               <div className="bg-background/70 backdrop-blur">
                 <Separator className="my-4" />
-                <ChatForm onSubmit={handleSubmit} />
+                {actionData?.error && (
+                  <div className="mb-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                    <p className="text-sm text-red-600 dark:text-red-400">
+                      {actionData.error}
+                    </p>
+                  </div>
+                )}
+                <ChatForm onSubmit={handleSubmit} disabled={isSubmitting} />
               </div>
             </div>
           </aside>

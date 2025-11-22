@@ -13,6 +13,8 @@ import { ChevronDown } from "lucide-react";
 import ProjectCard from "~/features/projects/components/project-card";
 import { getProjects, getProjectPages } from "~/features/projects/queries";
 import ProjectPagination from "~/common/components/project-pagination";
+import { makeSSRClient } from "~/lib/supa-client";
+import { getUserById } from "~/features/users/queries";
 import { Button } from "~/common/components/ui/button";
 import {
   DropdownMenu,
@@ -71,14 +73,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
       );
     }
 
-    // TODO: 실제 사용자 인증이 구현되면 ownerProfileId를 전달
-    // const session = await getSession(request);
-    // const ownerProfileId = session?.user?.id;
-    const ownerProfileId = undefined;
+    const { client } = makeSSRClient(request);
+
+    // 현재 사용자 정보 가져오기
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+
+    let ownerProfileId: string | undefined = undefined;
+    if (user) {
+      try {
+        const profile = await getUserById(client, { id: user.id });
+        ownerProfileId = profile?.id;
+      } catch (error) {
+        console.error("프로필 조회 실패:", error);
+        // 프로필이 없어도 계속 진행 (빈 목록 반환)
+      }
+    }
 
     // 병렬로 프로젝트 목록과 총 페이지 수 조회
     const [projects, totalPages] = await Promise.all([
-      getProjects({
+      getProjects(client, {
         ownerProfileId,
         page: parsedData.page,
         sorting: parsedData.sorting,
@@ -86,7 +101,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         keyword: parsedData.keyword,
         status: parsedData.status,
       }),
-      getProjectPages(ownerProfileId),
+      getProjectPages(client, ownerProfileId),
     ]);
 
     return {

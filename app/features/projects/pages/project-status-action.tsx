@@ -7,12 +7,14 @@
 
 import { type ActionFunctionArgs, data } from "react-router";
 import { updateProjectStep } from "../queries";
+import { makeSSRClient } from "~/lib/supa-client";
 
 export async function updateStepStatusAction({ request, params }: ActionFunctionArgs) {
   if (request.method !== "POST") {
     return data({ error: "Method not allowed" }, { status: 405 });
   }
 
+  const { client } = makeSSRClient(request);
   const projectId = params.projectId;
   if (!projectId || projectId === "create") {
     return data({ error: "Invalid project ID" }, { status: 400 });
@@ -62,6 +64,7 @@ export async function updateStepStatusAction({ request, params }: ActionFunction
     }
 
     const updatedStep = await updateProjectStep(
+      client,
       projectId,
       stepKey as any,
       status as any,

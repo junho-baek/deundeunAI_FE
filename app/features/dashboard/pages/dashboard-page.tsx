@@ -14,6 +14,7 @@ import {
   getMetricWidgets,
   getInsightsFromActivityFeed,
 } from "~/features/dashboard/queries";
+import { makeSSRClient } from "~/lib/supa-client";
 import { DashboardHero } from "~/features/dashboard/components/dashboard-hero";
 import { DashboardStatsGrid } from "~/features/dashboard/components/dashboard-stats-grid";
 import {
@@ -96,20 +97,34 @@ export const meta: MetaFunction = () => {
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    // TODO: 실제 사용자 인증이 구현되면 ownerProfileId를 전달
-    // const session = await getSession(request);
-    // const ownerProfileId = session?.user?.id;
-    const ownerProfileId = undefined; // 임시로 undefined 사용
+    const { client } = makeSSRClient(request);
+
+    // 현재 사용자 정보 가져오기
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+
+    let ownerProfileId: string | undefined = undefined;
+    if (user) {
+      try {
+        const { getUserById } = await import("~/features/users/queries");
+        const profile = await getUserById(client, { id: user.id });
+        ownerProfileId = profile?.id;
+      } catch (error) {
+        console.error("프로필 조회 실패:", error);
+        // 프로필이 없어도 계속 진행
+      }
+    }
 
     // 빠른 데이터는 즉시 로드 (View 사용으로 빠름)
-    const stats = await getProjectStats(undefined);
+    const stats = await getProjectStats(client, ownerProfileId);
 
     // 느린 데이터는 Promise로 비동기 로드 (defer 없이 직접 Promise 반환)
     return {
       stats, // 이미 resolve된 데이터
-      recentProjects: getRecentProjects(14, undefined, 10), // Promise (비동기)
-      metricWidgets: getMetricWidgets(ownerProfileId), // Promise (비동기)
-      insights: getInsightsFromActivityFeed(ownerProfileId, 3), // Promise (비동기)
+      recentProjects: getRecentProjects(client, 14, ownerProfileId, 10), // Promise (비동기)
+      metricWidgets: getMetricWidgets(client, ownerProfileId), // Promise (비동기)
+      insights: getInsightsFromActivityFeed(client, ownerProfileId, 3), // Promise (비동기)
     };
   } catch (error) {
     console.error("대시보드 데이터 로드 실패:", error);

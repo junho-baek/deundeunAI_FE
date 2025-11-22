@@ -1,7 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
-
+import {
+  createBrowserClient,
+  createServerClient,
+  parseCookieHeader,
+  serializeCookieHeader,
+} from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
+// Database 타입 정의 (필요시 확장)
 // TODO: database.types.ts 파일 생성 후 아래 주석을 해제하고 타입을 적용하세요
-// import type { Database } from "~/database.types";
+// import type { Database as SupabaseDatabase } from "~/database.types";
+// export type Database = SupabaseDatabase;
+export type Database = any; // 임시 타입 (database.types.ts 생성 후 교체)
 
 // Supabase 클라이언트 생성
 // 환경 변수 SUPABASE_URL과 SUPABASE_ANON_KEY가 설정되어 있어야 합니다
@@ -21,7 +30,7 @@ const supabaseAnonKey = isServer
   : (import.meta.env?.VITE_SUPABASE_ANON_KEY as string | undefined);
 
 // 환경 변수가 없으면 더미 클라이언트 생성 (개발 환경에서만)
-let client;
+let client: SupabaseClient<Database>;
 if (!supabaseUrl || !supabaseAnonKey) {
   const envVarName = isServer
     ? "SUPABASE_URL, SUPABASE_ANON_KEY 또는 VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY"
@@ -38,12 +47,66 @@ if (!supabaseUrl || !supabaseAnonKey) {
       `⚠️ Supabase 환경 변수가 설정되지 않았습니다. ${envVarName}를 확인하세요. 더미 클라이언트를 사용합니다.`
     );
     // 더미 URL로 클라이언트 생성 (에러 방지)
-    client = createClient("https://dummy.supabase.co", "dummy-anon-key");
+    client = createClient<Database>(
+      "https://dummy.supabase.co",
+      "dummy-anon-key"
+    );
   }
 } else {
-  // TODO: database.types.ts 생성 후 타입 적용
-  // client = createClient<Database>(supabaseUrl, supabaseAnonKey);
-  client = createClient(supabaseUrl, supabaseAnonKey);
+  client = createClient<Database>(supabaseUrl, supabaseAnonKey);
 }
 
+// 브라우저용 클라이언트 (클라이언트 사이드에서 사용)
+export const browserClient = createBrowserClient<Database>(
+  supabaseUrl || "https://dummy.supabase.co",
+  supabaseAnonKey || "dummy-anon-key"
+);
+
+// 서버 사이드 클라이언트 생성 함수 (SSR 환경에서 사용)
+export const makeSSRClient = (request: Request) => {
+  const headers = new Headers();
+
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey =
+    process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      "Supabase 환경 변수가 설정되지 않았습니다. SUPABASE_URL, SUPABASE_ANON_KEY를 확인하세요."
+    );
+  }
+
+  const serverSideClient = createServerClient<Database>(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+      cookies: {
+        getAll() {
+          const cookies = parseCookieHeader(
+            request.headers.get("Cookie") ?? ""
+          );
+          return cookies.map((cookie) => ({
+            name: cookie.name,
+            value: cookie.value || "",
+          }));
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            headers.append(
+              "Set-Cookie",
+              serializeCookieHeader(name, value || "", options)
+            );
+          });
+        },
+      },
+    }
+  );
+
+  return {
+    client: serverSideClient,
+    headers,
+  };
+};
+
+// 기본 클라이언트 (하위 호환성을 위해 유지)
 export default client;

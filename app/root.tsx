@@ -12,6 +12,8 @@ import type { Route } from "./+types/root";
 import "./app.css";
 import Navigation from "./common/components/navigation";
 import { cn } from "./lib/utils";
+import { makeSSRClient } from "./lib/supa-client";
+import { getUserById } from "./features/users/queries";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -44,10 +46,37 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function App() {
+export const loader = async ({ request }: Route.LoaderArgs) => {
+  try {
+    const { client } = makeSSRClient(request);
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+    
+    if (user) {
+      try {
+        const profile = await getUserById(client, { id: user.id });
+        return { user, profile };
+      } catch (error) {
+        // 프로필이 없을 수 있음 (아직 생성되지 않았을 수 있음)
+        console.error("프로필 조회 실패:", error);
+        return { user, profile: null };
+      }
+    }
+    
+    return { user: null, profile: null };
+  } catch (error) {
+    // 인증 확인 실패 시 null 반환 (인증되지 않은 상태로 처리)
+    console.error("사용자 인증 상태 확인 실패:", error);
+    return { user: null, profile: null };
+  }
+};
+
+export default function App({ loaderData }: Route.ComponentProps) {
   const location = useLocation();
   const navigation = useNavigation();
   const isLoading = navigation.state === "loading";
+  const isLoggedIn = loaderData?.user !== null;
   
   const isMy = location.pathname.startsWith("/my");
   const isAuth = location.pathname.startsWith("/auth");
@@ -73,7 +102,10 @@ export default function App() {
       <div className={layoutClass}>
         {!isMy && (
           <Navigation
-            isLoggedIn={false}
+            isLoggedIn={isLoggedIn}
+            username={loaderData?.profile?.slug || undefined}
+            avatar={loaderData?.profile?.avatar_url || undefined}
+            name={loaderData?.profile?.name || undefined}
             hasNotifications={true}
             hasMessages={true}
             compact={isAuth}

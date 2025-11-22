@@ -1,9 +1,11 @@
 import ProjectCard from "~/features/projects/components/project-card";
 import { getUserProjects } from "../queries";
+import { makeSSRClient } from "~/lib/supa-client";
 import type { Route } from "./+types/public-profile-projects-page";
 
-export async function loader({ params }: Route.LoaderArgs) {
-  const projects = await getUserProjects(params.username);
+export async function loader({ request, params }: Route.LoaderArgs) {
+  const { client } = makeSSRClient(request);
+  const projects = await getUserProjects(client, params.username);
   return { projects };
 }
 

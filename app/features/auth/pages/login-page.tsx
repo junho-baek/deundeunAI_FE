@@ -1,4 +1,5 @@
-import { Link, Form, type MetaFunction } from "react-router";
+import { Link, Form, type MetaFunction, type ActionFunctionArgs, redirect, useNavigation } from "react-router";
+import { z } from "zod";
 
 import FormButton from "~/common/components/form-button";
 import FormErrors from "~/common/components/form-error";
@@ -18,6 +19,8 @@ import {
 import { Input } from "~/common/components/ui/input";
 import { Label } from "~/common/components/ui/label";
 import { SignInButtons } from "../components/auth-login-buttons";
+import { makeSSRClient } from "~/lib/supa-client";
+import type { Route } from "./+types/login-page";
 
 export const meta: MetaFunction = () => {
   return [
@@ -32,9 +35,56 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export default function LoginPage() {
-  const actionData: unknown = undefined;
-  const fetcherState: "idle" | "submitting" = "idle";
+const formSchema = z.object({
+  email: z
+    .string({
+      required_error: "이메일을 입력해주세요.",
+      invalid_type_error: "이메일 형식이 올바르지 않습니다.",
+    })
+    .email("유효하지 않은 이메일 주소입니다."),
+  password: z
+    .string({
+      required_error: "비밀번호를 입력해주세요.",
+    })
+    .min(8, {
+      message: "비밀번호는 최소 8자 이상이어야 합니다.",
+    }),
+});
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const formData = await request.formData();
+  const { success, data, error } = formSchema.safeParse(
+    Object.fromEntries(formData)
+  );
+
+  if (!success) {
+    return {
+      loginError: null,
+      formErrors: error.flatten().fieldErrors,
+    };
+  }
+
+  const { email, password } = data;
+  const { client, headers } = makeSSRClient(request);
+  const { error: loginError } = await client.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (loginError) {
+    return {
+      formErrors: null,
+      loginError: loginError.message,
+    };
+  }
+
+  return redirect("/", { headers });
+};
+
+export default function LoginPage({ actionData }: Route.ComponentProps) {
+  const navigation = useNavigation();
+  const isSubmitting =
+    navigation.state === "submitting" || navigation.state === "loading";
 
   return (
     <div className="flex flex-col items-center justify-center gap-4">
@@ -61,9 +111,9 @@ export default function LoginPage() {
                 type="email"
                 placeholder="예: user@example.com"
               />
-              {false ? (
-                <FormErrors errors={["유효하지 않은 이메일 주소입니다"]} />
-              ) : null}
+              {actionData && "formErrors" in actionData && actionData.formErrors?.email && (
+                <FormErrors errors={actionData.formErrors.email} />
+              )}
             </div>
             <div className="flex flex-col items-start space-y-2">
               <div className="flex w-full items-center justify-between">
@@ -88,13 +138,17 @@ export default function LoginPage() {
                 type="password"
                 placeholder="비밀번호 입력"
               />
-              {false ? (
-                <FormErrors
-                  errors={["비밀번호는 최소 8자 이상이어야 합니다"]}
-                />
-              ) : null}
+              {actionData && "formErrors" in actionData && actionData.formErrors?.password && (
+                <FormErrors errors={actionData.formErrors.password} />
+              )}
             </div>
-            <FormButton label="로그인" className="w-full" />
+            {actionData && "loginError" in actionData && actionData.loginError && (
+              <Alert variant="destructive" className="bg-destructive/10">
+                <AlertTitle>로그인 실패</AlertTitle>
+                <AlertDescription>{actionData.loginError}</AlertDescription>
+              </Alert>
+            )}
+            <FormButton label="로그인" className="w-full" disabled={isSubmitting} />
             {false ? (
               <Alert variant="destructive" className="bg-destructive/10">
                 <AlertTitle>이메일 미인증</AlertTitle>
@@ -105,9 +159,6 @@ export default function LoginPage() {
                     className="text-foreground flex items-center justify-between gap-2"
                   >
                     인증 이메일 다시 보내기
-                    {fetcherState === "submitting" ? (
-                      <span className="size-4 animate-spin">⏳</span>
-                    ) : null}
                   </Button>
                 </AlertDescription>
               </Alert>

@@ -43,6 +43,13 @@
       "when": 1763789755346,
       "tag": "0005_bored_omega_red",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1763791108585,
+      "tag": "0006_even_george_stacy",
+      "breakpoints": true
     }
   ]
 }

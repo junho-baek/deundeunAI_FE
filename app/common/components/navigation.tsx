@@ -111,11 +111,17 @@ export default function Navigation({
   hasNotifications,
   hasMessages,
   compact,
+  username,
+  avatar,
+  name,
 }: {
   isLoggedIn: boolean;
   hasNotifications: boolean;
   hasMessages: boolean;
   compact?: boolean;
+  username?: string;
+  avatar?: string | null;
+  name?: string;
 }) {
   const location = useLocation();
   const isAuthPage = location.pathname.startsWith("/auth/");
@@ -225,14 +231,19 @@ export default function Navigation({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Avatar>
-                <AvatarImage src="https://github.com/junho-baek.png" />
-                <AvatarFallback>N</AvatarFallback>
+                {avatar ? (
+                  <AvatarImage src={avatar} />
+                ) : (
+                  <AvatarFallback>{name?.[0] || "N"}</AvatarFallback>
+                )}
               </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56">
               <DropdownMenuLabel className="flex flex-col">
-                <Typography variant="small">John Doe</Typography>
-                <Typography variant="muted">@username</Typography>
+                <Typography variant="small">{name || "사용자"}</Typography>
+                <Typography variant="muted">
+                  @{username || "username"}
+                </Typography>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
@@ -243,13 +254,13 @@ export default function Navigation({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link to="/my/settings/profile">
+                  <Link to="/my/dashboard/settings/profile">
                     <UserIcon className="size-4 mr-2" />
                     <Typography variant="small">Profile</Typography>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link to="/my/settings">
+                  <Link to="/my/dashboard/settings/profile">
                     <SettingsIcon className="size-4 mr-2" />
                     <Typography variant="small">Settings</Typography>
                   </Link>
@@ -257,7 +268,7 @@ export default function Navigation({
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild className="cursor-pointer">
-                <Link to="/auth/logout">
+                <Link to="/logout">
                   <LogOutIcon className="size-4 mr-2" />
                   <Typography variant="small">Logout</Typography>
                 </Link>

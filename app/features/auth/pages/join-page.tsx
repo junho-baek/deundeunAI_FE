@@ -1,5 +1,6 @@
-import { Link, Form, type MetaFunction } from "react-router";
+import { Link, Form, type MetaFunction, type ActionFunctionArgs, redirect, useNavigation } from "react-router";
 import * as React from "react";
+import { z } from "zod";
 
 import FormButton from "~/common/components/form-button";
 import FormErrors from "~/common/components/form-error";
@@ -19,6 +20,9 @@ import { Checkbox } from "~/common/components/ui/checkbox";
 import { Input } from "~/common/components/ui/input";
 import { Label } from "~/common/components/ui/label";
 import { SignUpButtons } from "../components/auth-login-buttons";
+import { makeSSRClient } from "~/lib/supa-client";
+import { checkUsernameExists } from "../queries";
+import type { Route } from "./+types/join-page";
 
 export const meta: MetaFunction = () => {
   return [
@@ -32,8 +36,54 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export default function JoinPage() {
-  const actionData: unknown = undefined;
+const formSchema = z.object({
+  name: z.string().min(3, "이름은 최소 3자 이상이어야 합니다."),
+  email: z.string().email("유효하지 않은 이메일 주소입니다."),
+  password: z.string().min(8, "비밀번호는 최소 8자 이상이어야 합니다."),
+  confirmPassword: z.string().min(8, "비밀번호 확인은 최소 8자 이상이어야 합니다."),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "비밀번호가 일치하지 않습니다.",
+  path: ["confirmPassword"],
+});
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const formData = await request.formData();
+  const { success, error, data } = formSchema.safeParse(
+    Object.fromEntries(formData)
+  );
+
+  if (!success) {
+    return {
+      formErrors: error.flatten().fieldErrors,
+    };
+  }
+
+  // Supabase 인증으로 회원가입
+  const { client, headers } = makeSSRClient(request);
+  const { error: signUpError } = await client.auth.signUp({
+    email: data.email,
+    password: data.password,
+    options: {
+      data: {
+        name: data.name,
+        // username은 나중에 프로필 설정에서 추가할 수 있도록 함
+      },
+    },
+  });
+
+  if (signUpError) {
+    return {
+      signUpError: signUpError.message,
+    };
+  }
+
+  return redirect("/", { headers });
+};
+
+export default function JoinPage({ actionData }: Route.ComponentProps) {
+  const navigation = useNavigation();
+  const isSubmitting =
+    navigation.state === "submitting" || navigation.state === "loading";
   const [step, setStep] = React.useState(0);
   const steps = ["name", "email", "password", "confirmPassword"] as const;
   const [formValues, setFormValues] = React.useState({
@@ -133,11 +183,9 @@ export default function JoinPage() {
                       value={formValues.email}
                       onChange={(e) => update("email", e.target.value)}
                     />
-                    {false ? (
-                      <FormErrors
-                        errors={["유효하지 않은 이메일 주소입니다"]}
-                      />
-                    ) : null}
+                    {actionData && "formErrors" in actionData && actionData.formErrors?.email && (
+                      <FormErrors errors={actionData.formErrors.email} />
+                    )}
                   </div>
                 </div>
                 {/* slide 3 */}
@@ -164,11 +212,9 @@ export default function JoinPage() {
                       value={formValues.password}
                       onChange={(e) => update("password", e.target.value)}
                     />
-                    {false ? (
-                      <FormErrors
-                        errors={["비밀번호는 최소 8자 이상이어야 합니다"]}
-                      />
-                    ) : null}
+                    {actionData && "formErrors" in actionData && actionData.formErrors?.password && (
+                      <FormErrors errors={actionData.formErrors.password} />
+                    )}
                   </div>
                 </div>
                 {/* slide 4 */}
@@ -194,9 +240,9 @@ export default function JoinPage() {
                         update("confirmPassword", e.target.value)
                       }
                     />
-                    {false ? (
-                      <FormErrors errors={["비밀번호가 일치하지 않습니다"]} />
-                    ) : null}
+                    {actionData && "formErrors" in actionData && actionData.formErrors?.confirmPassword && (
+                      <FormErrors errors={actionData.formErrors.confirmPassword} />
+                    )}
                   </div>
                 </div>
               </div>

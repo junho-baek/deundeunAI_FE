@@ -4,14 +4,19 @@
  * Supabase 클라이언트를 사용한 사용자 관련 데이터베이스 쿼리 함수들
  */
 
-import client from "~/lib/supa-client";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "~/lib/supa-client";
 
 /**
  * 프로필 정보 조회
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @returns 프로필 객체 또는 null
  */
-export async function getProfile(profileId: string) {
+export async function getProfile(
+  client: SupabaseClient<Database>,
+  profileId: string
+) {
   const { data, error } = await client
     .from("profiles")
     .select("*")
@@ -31,10 +36,14 @@ export async function getProfile(profileId: string) {
 
 /**
  * 프로필 ID로 slug 조회 (공개 프로필 링크 생성용)
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @returns slug 또는 null
  */
-export async function getProfileSlug(profileId: string): Promise<string | null> {
+export async function getProfileSlug(
+  client: SupabaseClient<Database>,
+  profileId: string
+): Promise<string | null> {
   const { data, error } = await client
     .from("profiles")
     .select("slug")
@@ -54,10 +63,42 @@ export async function getProfileSlug(profileId: string): Promise<string | null> 
 
 /**
  * 사용자명(slug)으로 프로필 정보 조회 (공개 프로필용)
+ * @param client - Supabase 클라이언트
  * @param slug - 사용자 slug (username)
  * @returns 프로필 객체 또는 null
  */
-export async function getUserProfile(slug: string) {
+/**
+ * 사용자 ID로 프로필 정보 조회
+ * @param client - Supabase 클라이언트
+ * @param id - 사용자 ID (auth.users.id)
+ * @returns 프로필 객체
+ */
+export const getUserById = async (
+  client: SupabaseClient<Database>,
+  { id }: { id: string }
+) => {
+  const { data, error } = await client
+    .from("profiles")
+    .select(`
+      id,
+      name,
+      slug,
+      avatar_url
+    `)
+    .eq("auth_user_id", id)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+export async function getUserProfile(
+  client: SupabaseClient<Database>,
+  slug: string
+) {
   const { data, error } = await client
     .from("profiles")
     .select(`
@@ -91,13 +132,18 @@ export async function getUserProfile(slug: string) {
 
 /**
  * 사용자명(slug)으로 프로젝트 목록 조회 (공개 프로필용)
+ * @param client - Supabase 클라이언트
  * @param slug - 사용자 slug (username)
  * @param limit - 조회할 프로젝트 개수 (기본값: 20)
  * @returns 프로젝트 배열
  */
-export async function getUserProjects(slug: string, limit: number = 20) {
+export async function getUserProjects(
+  client: SupabaseClient<Database>,
+  slug: string,
+  limit: number = 20
+) {
   // 먼저 프로필을 조회하여 profile_id를 얻음
-  const profile = await getUserProfile(slug);
+  const profile = await getUserProfile(client, slug);
   if (!profile) {
     return [];
   }

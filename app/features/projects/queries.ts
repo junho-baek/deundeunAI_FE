@@ -4,7 +4,8 @@
  * Supabase 클라이언트를 사용한 프로젝트 관련 데이터베이스 쿼리 함수들
  */
 
-import client from "~/lib/supa-client";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "~/lib/supa-client";
 import { PAGE_SIZE } from "./constants";
 
 /**
@@ -21,24 +22,28 @@ const projectWorkspaceSelect = "*";
 
 /**
  * 모든 프로젝트 목록 조회 (View 사용, 페이지네이션 및 필터링 지원)
+ * @param client - Supabase 클라이언트
  * @param options - 필터링 및 정렬 옵션
  * @returns 프로젝트 목록 배열 (평탄화된 구조)
  */
-export async function getProjects({
-  ownerProfileId,
-  page = 1,
-  sorting = "newest",
-  period = "all",
-  keyword,
-  status,
-}: {
-  ownerProfileId?: string;
-  page?: number;
-  sorting?: "newest" | "popular" | "trending";
-  period?: "all" | "today" | "week" | "month" | "year";
-  keyword?: string;
-  status?: string;
-}) {
+export async function getProjects(
+  client: SupabaseClient<Database>,
+  {
+    ownerProfileId,
+    page = 1,
+    sorting = "newest",
+    period = "all",
+    keyword,
+    status,
+  }: {
+    ownerProfileId?: string;
+    page?: number;
+    sorting?: "newest" | "popular" | "trending";
+    period?: "all" | "today" | "week" | "month" | "year";
+    keyword?: string;
+    status?: string;
+  }
+) {
   try {
     let query = client
       .from("project_list_view")
@@ -132,10 +137,14 @@ export async function getProjects({
 
 /**
  * 프로젝트 총 페이지 수 계산
+ * @param client - Supabase 클라이언트
  * @param ownerProfileId - 프로젝트 소유자 프로필 ID (선택사항)
  * @returns 총 페이지 수
  */
-export async function getProjectPages(ownerProfileId?: string) {
+export async function getProjectPages(
+  client: SupabaseClient<Database>,
+  ownerProfileId?: string
+) {
   try {
     let query = client
       .from("projects")
@@ -183,10 +192,14 @@ function isValidUUID(uuid: string): boolean {
 
 /**
  * 프로젝트 ID로 단일 프로젝트 조회
+ * @param client - Supabase 클라이언트
  * @param projectId - 프로젝트의 UUID (project_id 필드)
  * @returns 프로젝트 객체 또는 null
  */
-export async function getProjectByProjectId(projectId: string) {
+export async function getProjectByProjectId(
+  client: SupabaseClient<Database>,
+  projectId: string
+) {
   // UUID 형식 검증 (경고 메시지 제거, 조용히 null 반환)
   if (!isValidUUID(projectId)) {
     // "create"는 정상적인 케이스이므로 경고 출력하지 않음
@@ -220,10 +233,14 @@ export async function getProjectByProjectId(projectId: string) {
 
 /**
  * 프로젝트 ID (serial id)로 단일 프로젝트 조회 (관계 데이터 포함)
+ * @param client - Supabase 클라이언트
  * @param id - 프로젝트의 serial ID
  * @returns 프로젝트 객체와 소유자 프로필 정보 또는 null
  */
-export async function getProjectById(id: number) {
+export async function getProjectById(
+  client: SupabaseClient<Database>,
+  id: number
+) {
   const { data, error } = await client
     .from("projects")
     .select(
@@ -254,10 +271,14 @@ export async function getProjectById(id: number) {
 
 /**
  * 프로젝트와 소유자 프로필 정보를 함께 조회 (View 사용)
+ * @param client - Supabase 클라이언트
  * @param projectId - 프로젝트의 UUID (project_id 필드)
  * @returns 프로젝트와 프로필 정보가 포함된 객체 (평탄화된 구조)
  */
-export async function getProjectWithProfile(projectId: string) {
+export async function getProjectWithProfile(
+  client: SupabaseClient<Database>,
+  projectId: string
+) {
   // UUID 형식 검증 (경고 메시지 제거, 조용히 null 반환)
   if (!isValidUUID(projectId)) {
     // "create"는 정상적인 케이스이므로 경고 출력하지 않음
@@ -290,20 +311,24 @@ export async function getProjectWithProfile(projectId: string) {
 
 /**
  * 새 프로젝트 생성
+ * @param client - Supabase 클라이언트
  * @param projectData - 생성할 프로젝트 데이터
  * @returns 생성된 프로젝트 객체
  */
-export async function createProject(projectData: {
-  project_id?: string; // 옵션: 명시적으로 지정하면 사용, 없으면 DB가 자동 생성
-  owner_profile_id: string;
-  title: string;
-  description?: string;
-  status?: string;
-  visibility?: string;
-  slug?: string;
-  config?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
-}) {
+export async function createProject(
+  client: SupabaseClient<Database>,
+  projectData: {
+    project_id?: string; // 옵션: 명시적으로 지정하면 사용, 없으면 DB가 자동 생성
+    owner_profile_id: string;
+    title: string;
+    description?: string;
+    status?: string;
+    visibility?: string;
+    slug?: string;
+    config?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
+  }
+) {
   // id 필드는 제외하고 필요한 필드만 구성 (serial id는 DB가 자동 생성)
   const insertData: Record<string, unknown> = {
     project_id: projectData.project_id,
@@ -352,11 +377,13 @@ export async function createProject(projectData: {
 
 /**
  * 프로젝트 업데이트
+ * @param client - Supabase 클라이언트
  * @param projectId - 프로젝트의 UUID (project_id 필드)
  * @param updates - 업데이트할 필드들
  * @returns 업데이트된 프로젝트 객체
  */
 export async function updateProject(
+  client: SupabaseClient<Database>,
   projectId: string,
   updates: Partial<{
     title: string;
@@ -398,9 +425,13 @@ export async function updateProject(
 
 /**
  * 프로젝트 삭제
+ * @param client - Supabase 클라이언트
  * @param projectId - 프로젝트의 UUID (project_id 필드)
  */
-export async function deleteProject(projectId: string) {
+export async function deleteProject(
+  client: SupabaseClient<Database>,
+  projectId: string
+) {
   const { error } = await client
     .from("projects")
     .delete()
@@ -414,10 +445,14 @@ export async function deleteProject(projectId: string) {
 
 /**
  * 프로젝트 문서 조회
+ * @param client - Supabase 클라이언트
  * @param projectId - 프로젝트의 serial ID
  * @returns 프로젝트 문서 목록
  */
-export async function getProjectDocuments(projectId: number) {
+export async function getProjectDocuments(
+  client: SupabaseClient<Database>,
+  projectId: number
+) {
   const { data, error } = await client
     .from("project_documents")
     .select(projectWorkspaceSelect)
@@ -436,10 +471,14 @@ export async function getProjectDocuments(projectId: number) {
 
 /**
  * 프로젝트 미디어 자산 조회
+ * @param client - Supabase 클라이언트
  * @param projectId - 프로젝트의 serial ID
  * @returns 프로젝트 미디어 자산 목록
  */
-export async function getProjectMediaAssets(projectId: number) {
+export async function getProjectMediaAssets(
+  client: SupabaseClient<Database>,
+  projectId: number
+) {
   const { data, error } = await client
     .from("project_media_assets")
     .select(projectWorkspaceSelect)
@@ -458,20 +497,24 @@ export async function getProjectMediaAssets(projectId: number) {
 
 /**
  * 프로젝트의 모든 워크스페이스 데이터 조회 (문서, 미디어, 오디오 등)
+ * @param client - Supabase 클라이언트
  * @param projectId - 프로젝트의 UUID (project_id 필드)
  * @returns 프로젝트의 워크스페이스 데이터
  */
-export async function getProjectWorkspaceData(projectId: string) {
+export async function getProjectWorkspaceData(
+  client: SupabaseClient<Database>,
+  projectId: string
+) {
   // 먼저 프로젝트를 조회하여 serial ID를 얻음
-  const project = await getProjectByProjectId(projectId);
+  const project = await getProjectByProjectId(client, projectId);
   if (!project) {
     return null;
   }
 
   // 병렬로 모든 데이터 조회
   const [documents, mediaAssets] = await Promise.all([
-    getProjectDocuments(project.id),
-    getProjectMediaAssets(project.id),
+    getProjectDocuments(client, project.id),
+    getProjectMediaAssets(client, project.id),
   ]);
 
   // 오디오 세그먼트 조회 (type이 'script'인 문서의 오디오 세그먼트)
@@ -500,12 +543,14 @@ export async function getProjectWorkspaceData(projectId: string) {
 
 /**
  * 최근 프로젝트 목록 조회 (지정된 일수 내에 업데이트된 프로젝트)
+ * @param client - Supabase 클라이언트
  * @param days - 최근 일수 (기본값: 14)
  * @param ownerProfileId - 프로젝트 소유자 프로필 ID (선택사항)
  * @param limit - 최대 조회 개수 (기본값: 10)
  * @returns 최근 프로젝트 목록
  */
 export async function getRecentProjects(
+  client: SupabaseClient<Database>,
   days: number = 14,
   ownerProfileId?: string,
   limit: number = 10
@@ -539,6 +584,7 @@ export async function getRecentProjects(
 
 /**
  * 날짜 범위로 프로젝트 조회 (기간별 필터링용)
+ * @param client - Supabase 클라이언트
  * @param startDate - 시작 날짜 (ISO 문자열 또는 Date 객체)
  * @param endDate - 종료 날짜 (ISO 문자열 또는 Date 객체)
  * @param ownerProfileId - 프로젝트 소유자 프로필 ID (선택사항)
@@ -547,23 +593,32 @@ export async function getRecentProjects(
  * @param ascending - 오름차순 여부 (기본값: false)
  * @returns 프로젝트 목록
  */
-export async function getProjectsByDateRange({
-  startDate,
-  endDate,
-  ownerProfileId,
-  limit,
-  page = 1,
-  orderBy = "created_at",
-  ascending = false,
-}: {
-  startDate: string | Date;
-  endDate: string | Date;
-  ownerProfileId?: string;
-  limit: number;
-  page?: number;
-  orderBy?: "created_at" | "updated_at" | "likes" | "views" | "ctr" | "budget";
-  ascending?: boolean;
-}) {
+export async function getProjectsByDateRange(
+  client: SupabaseClient<Database>,
+  {
+    startDate,
+    endDate,
+    ownerProfileId,
+    limit,
+    page = 1,
+    orderBy = "created_at",
+    ascending = false,
+  }: {
+    startDate: string | Date;
+    endDate: string | Date;
+    ownerProfileId?: string;
+    limit: number;
+    page?: number;
+    orderBy?:
+      | "created_at"
+      | "updated_at"
+      | "likes"
+      | "views"
+      | "ctr"
+      | "budget";
+    ascending?: boolean;
+  }
+) {
   const startDateString =
     startDate instanceof Date ? startDate.toISOString() : startDate;
   const endDateString =
@@ -593,20 +648,24 @@ export async function getProjectsByDateRange({
 
 /**
  * 날짜 범위의 프로젝트 총 페이지 수 계산
+ * @param client - Supabase 클라이언트
  * @param startDate - 시작 날짜 (ISO 문자열 또는 Date 객체)
  * @param endDate - 종료 날짜 (ISO 문자열 또는 Date 객체)
  * @param ownerProfileId - 프로젝트 소유자 프로필 ID (선택사항)
  * @returns 총 페이지 수
  */
-export async function getProjectPagesByDateRange({
-  startDate,
-  endDate,
-  ownerProfileId,
-}: {
-  startDate: string | Date;
-  endDate: string | Date;
-  ownerProfileId?: string;
-}) {
+export async function getProjectPagesByDateRange(
+  client: SupabaseClient<Database>,
+  {
+    startDate,
+    endDate,
+    ownerProfileId,
+  }: {
+    startDate: string | Date;
+    endDate: string | Date;
+    ownerProfileId?: string;
+  }
+) {
   const startDateString =
     startDate instanceof Date ? startDate.toISOString() : startDate;
   const endDateString =
@@ -635,10 +694,14 @@ export async function getProjectPagesByDateRange({
 
 /**
  * 프로젝트 통계 데이터 조회 (View 사용)
+ * @param client - Supabase 클라이언트
  * @param ownerProfileId - 프로젝트 소유자 프로필 ID (선택사항)
  * @returns 프로젝트 통계 데이터
  */
-export async function getProjectStats(ownerProfileId?: string) {
+export async function getProjectStats(
+  client: SupabaseClient<Database>,
+  ownerProfileId?: string
+) {
   // View를 사용하되, ownerProfileId가 있으면 필터링을 위해 원본 테이블 사용
   // (View는 집계된 전체 데이터만 제공하므로)
   if (ownerProfileId) {
@@ -717,12 +780,16 @@ export async function getProjectStats(ownerProfileId?: string) {
 
 /**
  * 프로젝트 분석 데이터 조회 (하이라이트, 추천사항, 채널 링크 등)
+ * @param client - Supabase 클라이언트
  * @param projectId - 프로젝트의 UUID (project_id 필드)
  * @returns 프로젝트 분석 데이터
  */
-export async function getProjectAnalytics(projectId: string) {
+export async function getProjectAnalytics(
+  client: SupabaseClient<Database>,
+  projectId: string
+) {
   // 먼저 프로젝트를 조회하여 serial ID를 얻음
-  const project = await getProjectByProjectId(projectId);
+  const project = await getProjectByProjectId(client, projectId);
   if (!project) {
     return null;
   }
@@ -812,16 +879,18 @@ export async function getProjectAnalytics(projectId: string) {
 
 /**
  * 프로젝트 수익 예측 데이터 조회
+ * @param client - Supabase 클라이언트
  * @param projectId - 프로젝트의 UUID (project_id 필드)
  * @param months - 조회할 개월 수 (기본값: 6)
  * @returns 수익 예측 데이터 배열
  */
 export async function getProjectRevenueForecasts(
+  client: SupabaseClient<Database>,
   projectId: string,
   months: number = 6
 ) {
   // 먼저 프로젝트를 조회하여 serial ID를 얻음
-  const project = await getProjectByProjectId(projectId);
+  const project = await getProjectByProjectId(client, projectId);
   if (!project) {
     return [];
   }
@@ -850,12 +919,16 @@ export async function getProjectRevenueForecasts(
 
 /**
  * 프로젝트 단계 상태 조회
+ * @param client - Supabase 클라이언트
  * @param projectId - 프로젝트의 UUID (project_id 필드)
  * @returns 프로젝트의 모든 단계 상태
  */
-export async function getProjectSteps(projectId: string) {
+export async function getProjectSteps(
+  client: SupabaseClient<Database>,
+  projectId: string
+) {
   // 먼저 프로젝트를 조회하여 serial ID를 얻음
-  const project = await getProjectByProjectId(projectId);
+  const project = await getProjectByProjectId(client, projectId);
   if (!project) {
     return [];
   }
@@ -876,6 +949,7 @@ export async function getProjectSteps(projectId: string) {
 
 /**
  * 프로젝트 단계 상태 업데이트
+ * @param client - Supabase 클라이언트
  * @param projectId - 프로젝트의 UUID (project_id 필드)
  * @param stepKey - 단계 키 ("brief", "script", "narration", "images", "videos", "final")
  * @param status - 새로운 상태 ("pending", "in_progress", "blocked", "completed")
@@ -883,6 +957,7 @@ export async function getProjectSteps(projectId: string) {
  * @returns 업데이트된 단계 객체
  */
 export async function updateProjectStep(
+  client: SupabaseClient<Database>,
   projectId: string,
   stepKey:
     | "brief"
@@ -896,7 +971,7 @@ export async function updateProjectStep(
   metadata?: Record<string, unknown>
 ) {
   // 먼저 프로젝트를 조회하여 serial ID를 얻음
-  const project = await getProjectByProjectId(projectId);
+  const project = await getProjectByProjectId(client, projectId);
   if (!project) {
     throw new Error("프로젝트를 찾을 수 없습니다.");
   }
@@ -941,10 +1016,14 @@ export async function updateProjectStep(
 
 /**
  * 프로젝트 초기 단계들 생성
+ * @param client - Supabase 클라이언트
  * @param projectId - 프로젝트의 serial ID
  * @returns 생성된 단계들
  */
-export async function createInitialProjectSteps(projectId: number) {
+export async function createInitialProjectSteps(
+  client: SupabaseClient<Database>,
+  projectId: number
+) {
   // 이미 단계가 존재하는지 확인
   const { data: existingSteps } = await client
     .from("project_steps")

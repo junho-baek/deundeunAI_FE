@@ -20,6 +20,7 @@ import {
   getProjectByProjectId,
 } from "~/features/projects/queries";
 import { getProfileSlug } from "~/features/users/queries";
+import { makeSSRClient } from "~/lib/supa-client";
 
 export const meta: MetaFunction = () => {
   return [
@@ -37,7 +38,8 @@ export const meta: MetaFunction = () => {
 /**
  * 프로젝트 분석 페이지 데이터 로더
  */
-export async function loader({ params }: LoaderFunctionArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  const { client } = makeSSRClient(request);
   const projectId = params.projectId;
 
   if (!projectId || projectId === "create") {
@@ -48,18 +50,30 @@ export async function loader({ params }: LoaderFunctionArgs) {
     };
   }
 
+  // 이벤트 트래킹 (에러가 있어도 페이지는 계속 로드)
+  try {
+    await client.rpc("track_event", {
+      event_type: "project_view",
+      event_data: {
+        project_id: projectId,
+      },
+    });
+  } catch (error) {
+    console.error("이벤트 트래킹 실패:", error);
+  }
+
   try {
     const [analytics, revenueForecasts, project] = await Promise.all([
-      getProjectAnalytics(projectId),
-      getProjectRevenueForecasts(projectId, 6),
-      getProjectByProjectId(projectId),
+      getProjectAnalytics(client, projectId),
+      getProjectRevenueForecasts(client, projectId, 6),
+      getProjectByProjectId(client, projectId),
     ]);
 
     // owner slug 조회 (공개 프로필 링크용)
     let ownerSlug: string | null = null;
     if (project?.owner_profile_id) {
       try {
-        ownerSlug = await getProfileSlug(project.owner_profile_id);
+        ownerSlug = await getProfileSlug(client, project.owner_profile_id);
       } catch (error) {
         console.error("프로필 slug 조회 실패:", error);
       }

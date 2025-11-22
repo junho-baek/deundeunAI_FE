@@ -20,7 +20,8 @@ export const meta: MetaFunction = () => {
 export default function HomePage() {
   const fetcher = useFetcher();
   const outlet = useOutlet();
-  const submitting = fetcher.state !== "idle";
+  const submitting = fetcher.state === "submitting";
+  const actionData = fetcher.data as { error?: string } | undefined;
 
   const handleSubmit = React.useCallback(
     async (payload: ChatFormData) => {
@@ -50,6 +51,11 @@ export default function HomePage() {
     <div className="bg-background text-foreground">
       <section className="pb-40 w-screen bg-background text-foreground">
         <div className="px-20 space-y-40 min-w-[400px]">
+          {actionData?.error && (
+            <div className="mx-auto max-w-5xl p-4 mb-4 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-600 dark:text-red-400">{actionData.error}</p>
+            </div>
+          )}
           <ShortsHero
             onSubmit={handleSubmit}
             disabled={submitting}

@@ -19,6 +19,8 @@ export default [
     ]),
   ]),
 
+  route("/logout", "features/auth/pages/logout-page.tsx"),
+
   route("/pricing", "features/pricing/pages/pricing-page.tsx"),
 
   // ───────────────

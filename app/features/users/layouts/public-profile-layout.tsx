@@ -3,17 +3,32 @@ import { Avatar, AvatarFallback, AvatarImage } from "~/common/components/ui/avat
 import { Badge } from "~/common/components/ui/badge";
 import { cn } from "~/lib/utils";
 import { getUserProfile } from "../queries";
+import { makeSSRClient } from "~/lib/supa-client";
 import type { Route } from "./+types/public-profile-layout";
 
 export const meta: Route.MetaFunction = ({ data }) => {
   return [{ title: `${data.profile.name} | 든든AI` }];
 };
 
-export async function loader({ params }: Route.LoaderArgs) {
-  const profile = await getUserProfile(params.username);
+export async function loader({ request, params }: Route.LoaderArgs) {
+  const { client } = makeSSRClient(request);
+  const profile = await getUserProfile(client, params.username);
 
   if (!profile) {
     throw new Response("Profile not found", { status: 404 });
+  }
+
+  // 이벤트 트래킹 (에러가 있어도 페이지는 계속 로드)
+  try {
+    await client.rpc("track_event", {
+      event_type: "profile_view",
+      event_data: {
+        username: params.username,
+        profile_id: profile.id,
+      },
+    });
+  } catch (error) {
+    console.error("이벤트 트래킹 실패:", error);
   }
 
   return {

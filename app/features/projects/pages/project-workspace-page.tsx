@@ -15,6 +15,7 @@ import ProjectVideoSelect from "~/features/projects/components/project-video-sel
 import ProjectFinalVideo from "~/features/projects/components/project-final-video";
 import { useProjectDetail } from "~/features/projects/layouts/project-detail-layout";
 import { getProjectWorkspaceData } from "~/features/projects/queries";
+import { makeSSRClient } from "~/lib/supa-client";
 
 export const meta: MetaFunction = () => {
   return [
@@ -33,7 +34,8 @@ export const meta: MetaFunction = () => {
  * 프로젝트 워크스페이스 데이터 로더
  * 프로젝트의 문서, 미디어 자산, 오디오 세그먼트 등을 조회합니다
  */
-export async function loader({ params }: LoaderFunctionArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  const { client } = makeSSRClient(request);
   const projectId = params.projectId;
 
   if (!projectId || projectId === "create") {
@@ -42,8 +44,20 @@ export async function loader({ params }: LoaderFunctionArgs) {
     };
   }
 
+  // 이벤트 트래킹 (에러가 있어도 페이지는 계속 로드)
   try {
-    const workspaceData = await getProjectWorkspaceData(projectId);
+    await client.rpc("track_event", {
+      event_type: "project_workspace_view",
+      event_data: {
+        project_id: projectId,
+      },
+    });
+  } catch (error) {
+    console.error("이벤트 트래킹 실패:", error);
+  }
+
+  try {
+    const workspaceData = await getProjectWorkspaceData(client, projectId);
     return {
       workspaceData,
     };
