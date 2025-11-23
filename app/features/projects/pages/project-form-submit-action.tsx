@@ -1,15 +1,11 @@
-/**
- * 폼 제출 Action
- * ChatInitForm에서 제출된 폼 데이터를 처리하고 기획서 생성을 시작합니다.
- */
-
-import { type ActionFunctionArgs, data, redirect } from "react-router";
+import { type ActionFunctionArgs, data } from "react-router";
 import { makeSSRClient } from "~/lib/supa-client";
 import { getLoggedInUserId } from "~/features/users/queries";
 import { getProjectByProjectId } from "../queries";
 import { updateProjectStep } from "../mutations";
 import { saveProjectMessage } from "../queries";
 import { triggerProjectStepStartWebhook } from "~/lib/n8n-webhook";
+import { upsertShortWorkflowKeyword } from "../short-workflow";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   if (request.method !== "POST") {
@@ -28,8 +24,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const formData = await request.formData();
     const formDataObj: Record<string, string[]> = {};
-    
-    // FormData에서 폼 응답 데이터 추출
+
     for (const [key, value] of formData.entries()) {
       if (key.startsWith("form_")) {
         const fieldName = key.replace("form_", "");
@@ -40,14 +35,41 @@ export async function action({ request, params }: ActionFunctionArgs) {
       }
     }
 
-    // 프로젝트 확인
     const project = await getProjectByProjectId(client, projectId);
     if (!project) {
       return data({ error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
     }
 
-    // 폼 응답 메시지 저장
     const formDataStr = JSON.stringify(formDataObj, null, 2);
+    const metadata = (project.metadata ?? {}) as Record<string, unknown>;
+    const keywordSource =
+      typeof metadata.keyword === "string"
+        ? metadata.keyword
+        : formDataObj.keyword?.[0] || project.title || "";
+    const keyword = keywordSource.trim();
+
+    const category = formDataObj.category?.[0];
+    const imageModel =
+      formDataObj.image_model?.[0] ||
+      (typeof metadata.image_model === "string"
+        ? (metadata.image_model as string)
+        : undefined);
+
+    if (!category || !imageModel) {
+      return data(
+        { error: "카테고리와 이미지 모델을 모두 선택해주세요." },
+        { status: 400 }
+      );
+    }
+
+    const shortWorkflowKeyword = await upsertShortWorkflowKeyword(client, {
+      projectRowId: project.id,
+      ownerProfileId: project.owner_profile_id,
+      keyword,
+      category,
+      imageModel,
+    });
+
     await saveProjectMessage(client, {
       projectId,
       role: "user",
@@ -59,10 +81,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
       },
     });
 
-    // 에이전트 응답 메시지 저장
     await saveProjectMessage(client, {
       projectId,
-      role: "agent",
+      role: "assistant",
       content: "폼 응답을 확인했습니다. 기획서 작성을 시작하겠습니다.",
       stepKey: "brief",
       metadata: {
@@ -70,13 +91,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
       },
     });
 
-    // brief 단계를 in_progress로 시작
     await updateProjectStep(client, projectId, "brief", "in_progress", {
       formData: formDataObj,
       started_at: new Date().toISOString(),
     });
 
-    // n8n 웹훅 호출 (기획서 생성 시작)
     await triggerProjectStepStartWebhook({
       project_id: projectId,
       step_key: "brief",
@@ -84,7 +103,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
       started_at: new Date().toISOString(),
       metadata: {
         formData: formDataObj,
+        shortWorkflowKeyword,
       },
+      shortWorkflowKeyword,
     });
 
     return data({ success: true, message: "폼이 제출되었습니다." });
@@ -101,4 +122,3 @@ export async function action({ request, params }: ActionFunctionArgs) {
     );
   }
 }
-

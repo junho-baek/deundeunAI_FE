@@ -893,3 +893,40 @@ export {
 } from "./queries/messages";
 
 export { saveStepData, loadStepData } from "./queries/steps";
+
+/**
+ * 프로젝트별 메시지 요약 조회 (최근 메시지, 총 메시지 수 등)
+ * @param client - Supabase 클라이언트
+ * @param options.ownerProfileId - 소유자 프로필 ID
+ * @param options.limit - 최대 조회 개수 (기본값: 20)
+ * @returns 메시지 요약 배열
+ */
+export async function getProjectMessageSummaries(
+  client: SupabaseClient<Database>,
+  {
+    ownerProfileId,
+    limit = 20,
+  }: {
+    ownerProfileId: string;
+    limit?: number;
+  }
+) {
+  try {
+    const { data, error } = await client
+      .from("project_message_summaries")
+      .select("*")
+      .eq("owner_profile_id", ownerProfileId)
+      .order("last_message_at", { ascending: false, nullsFirst: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("프로젝트 메시지 요약 조회 실패:", error);
+      return [];
+    }
+
+    return data ?? [];
+  } catch (error) {
+    console.error("프로젝트 메시지 요약 조회 중 예외 발생:", error);
+    return [];
+  }
+}

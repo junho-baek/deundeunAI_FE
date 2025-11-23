@@ -220,9 +220,6 @@ export default function DashboardPage() {
               formatNumber={formatNumber}
               formatCTR={formatCTR}
               formatBudget={formatBudget}
-              getProjectUrl={(projectId) =>
-                `/my/dashboard/project/${projectId}/analytics`
-              }
             />
 
             <DashboardInsightsSection

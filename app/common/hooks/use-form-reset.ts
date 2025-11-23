@@ -37,4 +37,3 @@ export function useFormReset<T extends Record<string, unknown>>(
 
   return formRef;
 }
-

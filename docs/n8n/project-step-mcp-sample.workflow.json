@@ -1,0 +1,260 @@
+{
+  "name": "Project Event → MCP (Mock)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "5303ed01-58b2-4b6c-9645-afa98c0bd1f9",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -640,
+        0
+      ],
+      "id": "bc052170-655c-4e26-8b65-2469b0f59a29",
+      "name": "Webhook (project-events)",
+      "webhookId": "5303ed01-58b2-4b6c-9645-afa98c0bd1f9"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.all().map(item => {\n  const body = item.json?.body ?? item.json;\n\n  if (!body || typeof body !== \"object\") {\n    throw new Error(\"요청 body가 없습니다.\");\n  }\n\n  return {\n    json: {\n      event_type: body.event_type || body.eventType || \"unknown\",\n      timestamp: body.timestamp || new Date().toISOString(),\n      project_id: body.project_id || body.projectId || \"\",\n      project_title: body.project_title || body.projectTitle || null,\n      owner_profile_id: body.owner_profile_id || body.ownerProfileId || null,\n      step_key: body.step_key || body.stepKey || null,\n      step_status: body.step_status || body.stepStatus || null,\n      metadata: body.metadata || {}\n    }\n  };\n});\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -360,
+        0
+      ],
+      "id": "2fd4d3ba-7fa3-4d43-b6f5-97ea69b3ce4f",
+      "name": "Normalize Body"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "={{$json[\"event_type\"]}}",
+                  "typeValidation": "strict",
+                  "caseSensitive": true,
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json[\"event_type\"]}}",
+                    "rightValue": "project_started",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "event-type-project-started"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "leftValue": "={{$json[\"event_type\"]}}",
+                  "typeValidation": "strict",
+                  "caseSensitive": true,
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json[\"event_type\"]}}",
+                    "rightValue": "project_step_started",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "event-type-project-step-started"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -120,
+        0
+      ],
+      "id": "a6666c4c-0991-4f5d-9884-2bb3d78d0b26",
+      "name": "Event Router"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "raw": "={{ ({\\n  event_type: $json[\\\"event_type\\\"],\\n  mcp_intent: \\\"project_bootstrap\\\",\\n  project_id: $json[\\\"project_id\\\"],\\n  project_title: $json[\\\"project_title\\\"] ?? \\\"Untitled\\\",\\n  owner_profile_id: $json[\\\"owner_profile_id\\\"],\\n  metadata: $json[\\\"metadata\\\"] ?? {}\\n}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        120,
+        -140
+      ],
+      "id": "c8cbf4f6-2ae0-4e9f-99a2-e86c4c97e4e7",
+      "name": "Project Started Payload"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "raw": "={{ ({\\n  event_type: $json[\\\"event_type\\\"],\\n  mcp_intent: \\\"step_orchestration\\\",\\n  project_id: $json[\\\"project_id\\\"],\\n  step_key: $json[\\\"step_key\\\"] ?? \\\"unknown\\\",\\n  step_status: $json[\\\"step_status\\\"] ?? \\\"in_progress\\\",\\n  metadata: $json[\\\"metadata\\\"] ?? {}\\n}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        120,
+        160
+      ],
+      "id": "a378c9a4-6e2b-4e33-9c45-64b2f607b249",
+      "name": "Step Started Payload"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.all().map(item => {\n  const payload = item.json;\n  const isProjectStart = payload.event_type === \"project_started\";\n\n  const server = isProjectStart ? \"content-orchestrator\" : \"content-runner\";\n  const tool = isProjectStart ? \"bootstrap_project\" : \"prepare_step_context\";\n\n  const args = {\n    projectId: payload.project_id,\n    stepKey: payload.step_key || (isProjectStart ? \"brief\" : undefined),\n    metadata: payload.metadata || {}\n  };\n\n  if (isProjectStart) {\n    args.projectTitle = payload.project_title;\n    args.ownerProfileId = payload.owner_profile_id;\n  } else {\n    args.stepStatus = payload.step_status || \"in_progress\";\n  }\n\n  return {\n    json: {\n      ...payload,\n      mcpRequest: {\n        server,\n        tool,\n        arguments: args\n      }\n    }\n  };\n});\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        20
+      ],
+      "id": "ec886d8a-f0dc-4b4f-8311-6cf676247dfa",
+      "name": "Build MCP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.all().map(item => {\n  const payload = item.json;\n  const stepKey = payload.step_key || \"bootstrap\";\n\n  return {\n    json: {\n      project_id: payload.project_id,\n      step_key: payload.step_key || null,\n      status: \"queued\",\n      mcp_request: payload.mcpRequest,\n      mcp_response_sample: {\n        taskId: `mock-${stepKey}-${Date.now()}`,\n        nextAction: stepKey === \"bootstrap\" ? \"draft_brief\" : `process_${stepKey}`\n      }\n    }\n  };\n});\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        20
+      ],
+      "id": "36b69c7a-7415-4d15-9151-ccd5bfa841c6",
+      "name": "Mock MCP Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "options": {
+          "responseBody": "={{$json}}",
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        860,
+        20
+      ],
+      "id": "d98fae97-223b-4637-97cd-ca813585d72a",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook (project-events)": {
+      "main": [
+        [
+          {
+            "node": "Normalize Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Body": {
+      "main": [
+        [
+          {
+            "node": "Event Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event Router": {
+      "main": [
+        [
+          {
+            "node": "Project Started Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step Started Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Project Started Payload": {
+      "main": [
+        [
+          {
+            "node": "Build MCP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step Started Payload": {
+      "main": [
+        [
+          {
+            "node": "Build MCP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build MCP Request": {
+      "main": [
+        [
+          {
+            "node": "Mock MCP Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock MCP Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "558d88703fb65b2d0e44613bc35916258b0f0bf983c5d4730c00c424b77ca36a"
+  }
+}

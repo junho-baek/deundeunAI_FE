@@ -14,7 +14,7 @@ export type MessageAttachment = {
 
 export type ProjectMessage = {
   id: string;
-  role: "user" | "agent" | "system";
+  role: "user" | "assistant" | "system";
   content: string;
   attachments?: MessageAttachment[];
   aspectRatio?: string;
@@ -57,7 +57,7 @@ export async function getProjectMessages(
   return (
     data?.map((msg) => ({
       id: msg.message_id,
-      role: msg.role as "user" | "agent" | "system",
+      role: msg.role as "user" | "assistant" | "system",
       content: msg.content,
       attachments: (msg.payload?.attachments as MessageAttachment[]) || [],
       aspectRatio: msg.payload?.aspectRatio as string | undefined,
@@ -86,7 +86,7 @@ export async function saveProjectMessage(
     metadata = {},
   }: {
     projectId: string;
-    role: "user" | "agent" | "system";
+    role: "user" | "assistant" | "system";
     content: string;
     attachments?: MessageAttachment[];
     aspectRatio?: string;
@@ -142,7 +142,7 @@ export async function saveProjectMessages(
   }: {
     projectId: string;
     messages: Array<{
-      role: "user" | "agent" | "system";
+      role: "user" | "assistant" | "system";
       content: string;
       attachments?: MessageAttachment[];
       aspectRatio?: string;
@@ -194,4 +194,3 @@ export async function saveProjectMessages(
 
   return messageIds;
 }
-

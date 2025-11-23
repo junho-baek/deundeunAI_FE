@@ -24,6 +24,7 @@ import {
 } from "~/common/components/ui/dropdown-menu";
 import { Input } from "~/common/components/ui/input";
 import { SORT_OPTIONS, PERIOD_OPTIONS } from "../constants";
+import { getProjectRouteByStatus } from "~/features/projects/utils/navigation";
 
 const searchParamsSchema = z.object({
   page: z.coerce.number().min(1).optional().default(1),
@@ -266,12 +267,10 @@ export default function ProjectListPage() {
             ctaText="프로젝트 생성하기 →"
           />
           {projects.map((project) => {
-            // 프로젝트 상태에 따라 라우팅 결정
-            // "completed" 상태면 analytics로, 그 외에는 프로젝트 상세 페이지(index = workspace)로
-            const projectRoute =
-              project.status === "completed"
-                ? `/my/dashboard/project/${project.project_id}/analytics`
-                : `/my/dashboard/project/${project.project_id}`;
+            const projectRoute = getProjectRouteByStatus(
+              project.project_id,
+              project.status
+            );
 
             return (
               <ProjectCard

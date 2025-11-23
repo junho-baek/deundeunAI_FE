@@ -544,6 +544,52 @@ export async function getMessageEntries(
 }
 
 /**
+ * 알림 목록 조회
+ */
+export async function getNotifications(
+  client: SupabaseClient<Database>,
+  {
+    profileId,
+    limit = 50,
+  }: {
+    profileId: string;
+    limit?: number;
+  }
+) {
+  const { data, error } = await client
+    .from("notifications")
+    .select("*")
+    .eq("profile_id", profileId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("알림 조회 실패:", error);
+    throw new Error(`알림을 불러오는데 실패했습니다: ${error.message}`);
+  }
+
+  return data ?? [];
+}
+
+export async function countUnreadNotifications(
+  client: SupabaseClient<Database>,
+  profileId: string
+) {
+  const { count, error } = await client
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", profileId)
+    .is("read_at", null);
+
+  if (error) {
+    console.error("알림 개수 조회 실패:", error);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
+/**
  * 크레딧 차감 (RPC 함수 사용 - 원자적 연산 보장)
  * 동시성 문제를 해결하기 위해 Supabase RPC 함수를 사용합니다.
  */

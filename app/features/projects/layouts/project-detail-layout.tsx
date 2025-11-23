@@ -10,13 +10,19 @@ import {
 } from "react-router";
 import type { Route } from "./+types/project-detail-layout";
 import ChatForm, { type ChatFormData } from "~/common/components/chat-form";
-import ChatBox from "~/features/projects/components/chat-box";
 import ChatInitForm, {
   type SurveySection,
 } from "~/features/projects/components/chat-init-form";
+import {
+  SHORT_WORKFLOW_CATEGORY_OPTIONS,
+  SHORT_WORKFLOW_IMAGE_MODEL_OPTIONS,
+} from "../short-workflow.constants";
+import ChatBox from "~/features/projects/components/chat-box";
 import ChatConfirmCard from "~/features/projects/components/chat-confirm-card";
 import { Typography } from "~/common/components/typography";
 import { Separator } from "~/common/components/ui/separator";
+import { Textarea } from "~/common/components/ui/textarea";
+import { Button } from "~/common/components/ui/button";
 import {
   Alert,
   AlertTitle,
@@ -47,6 +53,7 @@ type Message = {
     | "videos"
     | "final"
     | "distribution";
+  metadata?: Record<string, unknown>;
 };
 
 type LoadingState = {
@@ -247,6 +254,7 @@ function useProjectDetailState(
             | ChatFormData["aspectRatio"]
             | undefined,
           stepKey: msg.stepKey as Message["stepKey"], // stepKey 타입 캐스팅
+          metadata: msg.metadata || undefined,
         })
       );
     }
@@ -672,8 +680,12 @@ export default function ProjectDetailLayout({
 function AgentConversationMock() {
   const { messages, loading, done, projectId } = useProjectDetail();
   const formSubmitFetcher = useFetcher();
+  const referenceSubmitFetcher = useFetcher();
   const formActionData = formSubmitFetcher.data as
     | { success?: boolean; ok?: boolean; error?: string }
+    | undefined;
+  const referenceActionData = referenceSubmitFetcher.data as
+    | { success?: boolean; error?: string }
     | undefined;
   const latestUserMessage = React.useMemo(
     () => [...messages].reverse().find((message) => message.role === "user"),
@@ -685,12 +697,28 @@ function AgentConversationMock() {
   const hasProjectStarted =
     messages.length > 0 && messages.some((m) => m.role === "user");
 
-  // 폼 제출 핸들러 (ChatInitForm용)
+  const hasMessages = messages.length > 0;
+
+  const hasReferenceSubmissionMessage = React.useMemo(
+    () =>
+      messages.some((message) => {
+        const meta =
+          (message.metadata as { isReferenceSubmission?: boolean } | undefined) ??
+          undefined;
+        return Boolean(meta?.isReferenceSubmission);
+      }),
+    [messages]
+  );
+
+  const hasSubmittedReference =
+    hasReferenceSubmissionMessage ||
+    referenceSubmitFetcher.state === "submitting" ||
+    Boolean(referenceActionData?.success);
+
   const handleFormSubmit = React.useCallback(
     async (values: Record<string, string[]>) => {
       if (!projectId || projectId === "create") return;
 
-      // FormData 생성
       const formData = new FormData();
       for (const [key, valueArray] of Object.entries(values)) {
         for (const value of valueArray) {
@@ -698,7 +726,6 @@ function AgentConversationMock() {
         }
       }
 
-      // 폼 제출 action 호출
       formSubmitFetcher.submit(formData, {
         method: "post",
         action: `/my/dashboard/project/${projectId}/form/submit`,
@@ -710,88 +737,60 @@ function AgentConversationMock() {
   const sections: SurveySection[] = React.useMemo(
     () => [
       {
-        id: "type",
-        title: "어떤 유형의 컨텐츠를 만들고 싶으신가요?",
-        description: "원하시는 콘텐츠 유형을 선택하세요.",
-        multiple: true,
-        options: [
-          { id: "viral", label: "바이럴/트렌드" },
-          { id: "info", label: "정보전달(How-to)" },
-          { id: "health", label: "건강쇼츠" },
-          { id: "animal", label: "동물쇼츠" },
-        ],
+        id: "category",
+        title: "카테고리를 선택해주세요",
+        description: "콘텐츠의 주제를 골라 주세요.",
+        options: SHORT_WORKFLOW_CATEGORY_OPTIONS.map((value) => ({
+          id: value,
+          label: value,
+        })),
       },
       {
-        id: "audience",
-        title: "누굴 타겟하나요?",
-        description: "주요 시청자층을 선택하세요.",
-        multiple: true,
-        options: [
-          { id: "teen", label: "10대" },
-          { id: "2030", label: "20-30대" },
-          { id: "40plus", label: "40대 이상" },
-          { id: "office", label: "직장인" },
-          { id: "founder", label: "창업가" },
-          { id: "senior", label: "시니어" },
-        ],
-      },
-      {
-        id: "fun",
-        title: "재밌는 포인트",
-        description: "핵심 훅/포인트를 고르세요.",
-        multiple: true,
-        options: [
-          { id: "hook", label: "강한 훅" },
-          { id: "twist", label: "반전" },
-          { id: "meme", label: "밈 활용" },
-          { id: "humor", label: "유머" },
-        ],
-      },
-      {
-        id: "lang",
-        title: "언어",
-        multiple: true,
-        options: [
-          { id: "ko", label: "한국어" },
-          { id: "en", label: "영어" },
-          { id: "caption", label: "자막만" },
-        ],
-      },
-      {
-        id: "ratio",
-        title: "비율",
-        multiple: true,
-        options: [
-          { id: "9-16", label: "9:16" },
-          { id: "1-1", label: "1:1" },
-          { id: "16-9", label: "16:9" },
-        ],
-      },
-      {
-        id: "style",
-        title: "비디오 스타일",
-        description: "전달 방식이나 톤을 선택하세요.",
-        multiple: true,
-        options: [
-          { id: "viral", label: "바이럴" },
-          { id: "info", label: "정보전달" },
-          { id: "health", label: "건강쇼츠" },
-          { id: "animal", label: "동물쇼츠" },
-        ],
+        id: "image_model",
+        title: "이미지 생성 모델",
+        description: "선호하는 이미지 모델을 선택해주세요.",
+        options: SHORT_WORKFLOW_IMAGE_MODEL_OPTIONS.map((value) => ({
+          id: value,
+          label: value,
+        })),
       },
     ],
     []
   );
 
-  const hasMessages = messages.length > 0;
+  const hasFormResponseMessage = React.useMemo(
+    () =>
+      messages.some((message) => {
+        const meta = message.metadata as { isFormResponse?: boolean } | undefined;
+        return Boolean(meta?.isFormResponse);
+      }),
+    [messages]
+  );
 
-  // 첫 번째 사용자 메시지가 있고, 기획서가 시작되지 않았으면 폼 생성 중 메시지 표시
-  // (사용자 메시지가 있고, 기획서가 pending 상태일 때)
-  const showFormGenerating =
+  const hasSubmittedForm =
+    hasFormResponseMessage ||
+    formSubmitFetcher.state === "submitting" ||
+    Boolean(formActionData?.success);
+
+  const shouldShowSurveyForm =
     hasProjectStarted &&
+    hasSubmittedReference &&
     !done.brief &&
     !loading.brief &&
-    messages.some((m) => m.role === "user");
+    !hasSubmittedForm;
+
+  const shouldShowSurveyPlaceholder =
+    hasProjectStarted &&
+    hasSubmittedReference &&
+    !done.brief &&
+    !loading.brief &&
+    hasSubmittedForm;
+
+  const shouldShowReferenceForm =
+    hasProjectStarted && !hasSubmittedReference && !!projectId;
+
+  const showReferencePlaceholder =
+    referenceSubmitFetcher.state === "submitting";
   // 기획서 작성 중
   const showBriefGenerating = loading.brief;
   // 기획서 완료
@@ -819,43 +818,152 @@ function AgentConversationMock() {
     <div className="flex flex-col gap-2">
       {/* 저장된 메시지 표시 */}
       {hasMessages &&
-        messages.map((message) => (
-          <ChatBox
-            key={message.id}
-            role={message.role}
-            message={message.content}
-            avatarSrc={message.role === "user" ? "/avatar.png" : "/agent.png"}
-            stackBelowAvatar={message.role === "agent"}
-            childrenFullWidth
-          >
-            {message.role === "user" &&
-            (message.aspectRatio || (message.attachments?.length ?? 0) > 0) ? (
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                {message.aspectRatio ? (
-                  <span className="rounded-full border border-muted-foreground/30 px-2 py-1">
-                    비율 {message.aspectRatio}
-                  </span>
-                ) : null}
-                {message.attachments?.map((attachment, index) => (
-                  <span
-                    key={`${attachment.name}-${index}`}
-                    className="rounded-full border border-muted-foreground/30 px-2 py-1"
-                  >
-                    {attachment.name}
-                  </span>
+        messages.map((message) => {
+          const metadata = (message.metadata ??
+            {}) as {
+            isFormResponse?: boolean;
+            formData?: Record<string, string[]>;
+          };
+          const isUserFormResponse =
+            message.role === "user" && metadata.isFormResponse;
+          const displayMessage = isUserFormResponse
+            ? "폼 응답이 제출되었습니다."
+            : message.content;
+
+          const renderFormChips = () => {
+            if (!metadata.formData) return null;
+            const entries = Object.entries(metadata.formData);
+            if (entries.length === 0) return null;
+            const formatLabel = (field: string) => {
+              switch (field) {
+                case "category":
+                  return "카테고리";
+                case "image_model":
+                  return "이미지 모델";
+                default:
+                  return field;
+              }
+            };
+            return (
+              <div className="flex flex-col gap-2 text-xs text-muted-foreground">
+                {entries.map(([field, values]) => (
+                  <div key={field}>
+                    <span className="text-foreground font-medium">
+                      {formatLabel(field)}
+                    </span>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {values.map((value) => (
+                        <span
+                          key={`${field}-${value}`}
+                          className="rounded-full border border-muted-foreground/30 px-2 py-0.5 text-foreground"
+                        >
+                          {value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
-            ) : null}
-          </ChatBox>
-        ))}
+            );
+          };
 
-      {/* 폼 생성 중 (첫 사용자 메시지 후) */}
-      {showFormGenerating && (
+          const shouldShowMetaDetails =
+            message.role === "user" &&
+            !isUserFormResponse &&
+            (message.aspectRatio || (message.attachments?.length ?? 0) > 0);
+
+          return (
+            <ChatBox
+              key={message.id}
+              role={message.role}
+              message={displayMessage}
+              avatarSrc={message.role === "user" ? "/avatar.png" : "/agent.png"}
+              stackBelowAvatar={message.role === "agent"}
+              childrenFullWidth
+            >
+              {isUserFormResponse
+                ? renderFormChips()
+                : shouldShowMetaDetails && (
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      {message.aspectRatio ? (
+                        <span className="rounded-full border border-muted-foreground/30 px-2 py-1">
+                          비율 {message.aspectRatio}
+                        </span>
+                      ) : null}
+                      {message.attachments?.map((attachment, index) => (
+                        <span
+                          key={`${attachment.name}-${index}`}
+                          className="rounded-full border border-muted-foreground/30 px-2 py-1"
+                        >
+                          {attachment.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+            </ChatBox>
+          );
+        })}
+
+      {shouldShowReferenceForm && projectId && (
         <ChatBox
           role="agent"
-          message="요청해주신 쿼리로 폼 생성 중입니다..."
+          message="콘텐츠를 더 잘 이해할 수 있도록 참고 자료를 입력해주세요."
           avatarSrc="/agent.png"
+          stackBelowAvatar
+          childrenFullWidth
+        >
+          <div className="mt-3 space-y-3">
+            <referenceSubmitFetcher.Form
+              method="post"
+              action={`/my/dashboard/project/${projectId}/reference/submit`}
+              className="space-y-3"
+            >
+              <Textarea
+                name="reference"
+                required
+                minLength={20}
+                placeholder="예: 영상에서 반드시 다루고 싶은 핵심 메시지, 참고할 자료 링크, 포함했으면 하는 스토리 요소 등을 자유롭게 적어주세요."
+                className="min-h-[120px]"
+                disabled={referenceSubmitFetcher.state === "submitting"}
+              />
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="rounded-full"
+                  disabled={referenceSubmitFetcher.state === "submitting"}
+                >
+                  {referenceSubmitFetcher.state === "submitting"
+                    ? "전송 중..."
+                    : "참고 자료 전송"}
+                </Button>
+              </div>
+            </referenceSubmitFetcher.Form>
+            {referenceActionData?.error && (
+              <p className="text-sm text-destructive">
+                {referenceActionData.error}
+              </p>
+            )}
+          </div>
+        </ChatBox>
+      )}
+
+      {showReferencePlaceholder && (
+        <ChatBox
+          role="agent"
+          message="보내주신 참고 자료를 검토 중입니다..."
+          avatarSrc="/agent.png"
+          stackBelowAvatar
+          childrenFullWidth
           showThinking
+        />
+      )}
+
+      {shouldShowSurveyForm && (
+        <ChatBox
+          role="agent"
+          message="콘텐츠 방향을 정하기 위해 아래 정보를 선택해주세요."
+          avatarSrc="/agent.png"
           stackBelowAvatar
           childrenFullWidth
         >
@@ -863,10 +971,29 @@ function AgentConversationMock() {
             <ChatInitForm
               sections={sections}
               onSubmit={handleFormSubmit}
+              submitLabel={
+                formSubmitFetcher.state === "submitting" ? "전송 중..." : "제출"
+              }
               actionData={formActionData}
             />
+            {formActionData?.error && (
+              <p className="mt-2 text-sm text-destructive">
+                {formActionData.error}
+              </p>
+            )}
           </div>
         </ChatBox>
+      )}
+
+      {shouldShowSurveyPlaceholder && (
+        <ChatBox
+          role="agent"
+          message="입력해 주신 정보를 검토 중이에요."
+          avatarSrc="/agent.png"
+          stackBelowAvatar
+          childrenFullWidth
+          showThinking
+        />
       )}
 
       {/* 기획서 작성 중 */}

@@ -100,6 +100,10 @@ export default [
                 "features/projects/pages/project-form-submit-action.tsx"
               ),
               route(
+                "reference/submit",
+                "features/projects/pages/project-reference-submit-action.tsx"
+              ),
+              route(
                 "generate",
                 "features/projects/pages/project-generate-page.tsx"
               ),
@@ -188,6 +192,11 @@ export default [
           route("billing", "features/users/pages/billing-page.tsx"),
         ]),
       ]),
+      route("notifications", "features/users/pages/notifications-page.tsx"),
+      route(
+        "notifications/:notificationId/see",
+        "features/users/pages/notification-see-action.tsx"
+      ),
     ]),
   ]),
 

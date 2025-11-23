@@ -21,6 +21,7 @@ import {
 } from "~/features/projects/queries";
 import { getProfileSlug } from "~/features/users/queries";
 import { makeSSRClient } from "~/lib/supa-client";
+import { getProjectRouteByStatus } from "~/features/projects/utils/navigation";
 
 export const meta: MetaFunction = () => {
   return [
@@ -281,7 +282,7 @@ export default function ProjectAnalyticsPage() {
           <aside className="space-y-6">
             <ProjectCard
               id={project.project_id}
-              to={`/my/dashboard/project/${project.project_id}`}
+              to={getProjectRouteByStatus(project.project_id, project.status)}
               title={project.title}
               description={project.description || undefined}
               likes={formatNumber(project.likes)}
@@ -289,6 +290,7 @@ export default function ProjectAnalyticsPage() {
               budget={formatBudget(project.budget)}
               thumbnail={project.thumbnail || undefined}
               className="shadow-sm"
+              status={project.status || undefined}
             />
 
             <ProjectChannelLinks

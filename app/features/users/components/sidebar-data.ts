@@ -1,9 +1,8 @@
 import {
+  Bell,
   FolderPlus,
   LayoutDashboard,
   Settings,
-  User,
-  CreditCard,
   Home,
   type LucideIcon,
 } from "lucide-react";
@@ -30,6 +29,11 @@ export const sidebarNavMain: SidebarNavItem[] = [
     url: "/my/dashboard",
     icon: LayoutDashboard,
   },
+  {
+    title: "알림",
+    url: "/my/notifications",
+    icon: Bell,
+  },
 ];
 
 export const sidebarNavProjects: SidebarNavItem[] = [
@@ -55,4 +59,3 @@ export const sidebarNavSettings: SidebarNavItem = {
     },
   ],
 };
-

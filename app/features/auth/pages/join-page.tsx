@@ -271,23 +271,31 @@ export default function JoinPage({ actionData }: Route.ComponentProps) {
               >
                 이전
               </button>
-              {step < steps.length - 1 ? (
-                <button
-                  type="button"
-                  onClick={goNext}
-                  className="ml-auto px-3 py-2 rounded-md border text-sm"
-                >
-                  다음
-                </button>
-              ) : (
-                <FormButton label="계정 생성" className="ml-auto" />
-              )}
-            </div>
-            {false ? (
-              <Alert className="bg-green-600/20 text-green-700 dark:bg-green-950/20 dark:text-green-600">
-                <AlertTitle>계정이 생성되었습니다!</AlertTitle>
-                <AlertDescription className="text-green-700 dark:text-green-600">
-                  로그인하기 전에 이메일을 인증해 주세요. 이 탭을 닫아도 됩니다.
+            {step < steps.length - 1 ? (
+              <button
+                type="button"
+                onClick={goNext}
+                className="ml-auto px-3 py-2 rounded-md border text-sm"
+              >
+                다음
+              </button>
+            ) : (
+              <FormButton label="계정 생성" className="ml-auto" />
+            )}
+          </div>
+          {actionData &&
+            "signUpError" in actionData &&
+            actionData.signUpError && (
+              <Alert variant="destructive" className="bg-destructive/10">
+                <AlertTitle>회원가입 실패</AlertTitle>
+                <AlertDescription>{actionData.signUpError}</AlertDescription>
+              </Alert>
+            )}
+          {false ? (
+            <Alert className="bg-green-600/20 text-green-700 dark:bg-green-950/20 dark:text-green-600">
+              <AlertTitle>계정이 생성되었습니다!</AlertTitle>
+              <AlertDescription className="text-green-700 dark:text-green-600">
+                로그인하기 전에 이메일을 인증해 주세요. 이 탭을 닫아도 됩니다.
                 </AlertDescription>
               </Alert>
             ) : null}

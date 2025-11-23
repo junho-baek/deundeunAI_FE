@@ -17,6 +17,10 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { profiles } from "~/features/users/schema";
+import {
+  SHORT_WORKFLOW_CATEGORY_OPTIONS,
+  SHORT_WORKFLOW_IMAGE_MODEL_OPTIONS,
+} from "./short-workflow.constants";
 
 export const projectStatusEnum = pgEnum("project_status", [
   "draft",
@@ -197,6 +201,158 @@ export const projectDocuments = pgTable(
       table.order
     ),
   })
+);
+
+// Short workflow (에어테이블 이관)용 공통 Enum
+export const shortWorkflowKeywordStatusEnum = pgEnum(
+  "short_workflow_keyword_status",
+  ["wait", "reserve", "complete"]
+);
+
+export const shortWorkflowCategoryEnum = pgEnum(
+  "short_workflow_category",
+  SHORT_WORKFLOW_CATEGORY_OPTIONS
+);
+
+export const shortWorkflowImageModelEnum = pgEnum(
+  "short_workflow_image_model",
+  SHORT_WORKFLOW_IMAGE_MODEL_OPTIONS
+);
+
+export const shortWorkflowJobStatusEnum = pgEnum(
+  "short_workflow_job_status",
+  ["wait", "reserve", "processing", "complete"]
+);
+
+export const shortWorkflowImageStatusEnum = pgEnum(
+  "short_workflow_image_status",
+  ["success", "in_progress"]
+);
+
+// short_workflow_keywords: 기존 Airtable "키워드"
+export const shortWorkflowKeywords = pgTable("short_workflow_keywords", {
+  id: serial("id").primaryKey(),
+  keyword: text("keyword").notNull(),
+  status: shortWorkflowKeywordStatusEnum("status").default("wait").notNull(),
+  reference: text("reference"),
+  category: shortWorkflowCategoryEnum("category"),
+  imageModel: shortWorkflowImageModelEnum("image_model"),
+  projectId: integer("project_id").references(() => projects.id, {
+    onDelete: "cascade",
+  }),
+  ownerProfileId: uuid("owner_profile_id").references(() => profiles.id, {
+    onDelete: "cascade",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// short_workflow_jobs: 기존 Airtable "작업"
+export const shortWorkflowJobs = pgTable("short_workflow_jobs", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  status: shortWorkflowJobStatusEnum("status").default("wait").notNull(),
+  keyword: text("keyword"),
+  length: numeric("length", { precision: 10, scale: 1 }),
+  intro: text("intro"),
+  base: text("base"),
+  cta: text("cta"),
+  tags: text("tags"),
+  category: shortWorkflowCategoryEnum("category"),
+  description: text("description"),
+  imageModel: shortWorkflowImageModelEnum("image_model"),
+  audioFile: text("audio_file"),
+  audioAlignment: text("audio_alignment"),
+  output: text("output"),
+  projectId: integer("project_id").references(() => projects.id, {
+    onDelete: "cascade",
+  }),
+  ownerProfileId: uuid("owner_profile_id").references(() => profiles.id, {
+    onDelete: "cascade",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// short_workflow_images: 기존 Airtable "이미지"
+export const shortWorkflowImages = pgTable("short_workflow_images", {
+  id: serial("id").primaryKey(),
+  pid: text("pid").notNull(),
+  status: shortWorkflowImageStatusEnum("status")
+    .default("in_progress")
+    .notNull(),
+  duration: text("duration"),
+  sourceText: text("source_text"),
+  imagePrompt: text("image_prompt"),
+  imageUrl: text("image_url"),
+  moviePrompt: text("movie_prompt"),
+  movieUrl: text("movie_url"),
+  videoTaskId: text("video_task_id"),
+  position: text("position"),
+  datetime: timestamp("datetime", { withTimezone: true }),
+  projectId: integer("project_id").references(() => projects.id, {
+    onDelete: "cascade",
+  }),
+  ownerProfileId: uuid("owner_profile_id").references(() => profiles.id, {
+    onDelete: "cascade",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// short_workflow_prompts: 기존 Airtable "프롬프트"
+export const shortWorkflowPrompts = pgTable("short_workflow_prompts", {
+  id: serial("id").primaryKey(),
+  category: text("category").notNull(),
+  prompt: text("prompt"),
+  output: text("output"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// short_workflow_completions: 기존 Airtable "완료"
+export const shortWorkflowCompletions = pgTable(
+  "short_workflow_completions",
+  {
+    id: serial("id").primaryKey(),
+    pid: text("pid").notNull(),
+    renderId: text("render_id"),
+    duration: numeric("duration", { precision: 10, scale: 1 }),
+    renderStatus: text("render_status"),
+    renderUrl: text("render_url"),
+  youtubeUrl: text("youtube_url"),
+  title: text("title"),
+  description: text("description"),
+  tags: text("tags"),
+  projectId: integer("project_id").references(() => projects.id, {
+    onDelete: "cascade",
+  }),
+  ownerProfileId: uuid("owner_profile_id").references(() => profiles.id, {
+    onDelete: "cascade",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+      .notNull(),
+  }
 );
 
 // 생성된 이미지/영상/오디오 자산

@@ -2,6 +2,7 @@ import ProjectCard from "~/features/projects/components/project-card";
 import { getUserProjects } from "../queries";
 import { makeSSRClient } from "~/lib/supa-client";
 import type { Route } from "./+types/public-profile-projects-page";
+import { getProjectRouteByStatus } from "~/features/projects/utils/navigation";
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   const { client } = makeSSRClient(request);
@@ -43,17 +44,23 @@ export default function PublicProfileProjectsPage({
         </div>
       ) : (
         projects.map((project: any) => {
+          const projectId = project.project_id || project.id;
+          const projectRoute = getProjectRouteByStatus(
+            projectId,
+            project.status
+          );
           return (
             <ProjectCard
-              key={project.project_id || project.id}
-              id={project.project_id || project.id}
-              to={`/my/dashboard/project/${project.project_id || project.id}/analytics`}
+              key={projectId}
+              id={projectId}
+              to={projectRoute}
               title={project.title}
               description={project.description || undefined}
               likes={formatNumber(project.likes)}
               ctr={formatCTR(project.ctr)}
               budget={formatBudget(project.budget)}
               thumbnail={project.thumbnail || undefined}
+              status={project.status || undefined}
             />
           );
         })
@@ -61,4 +68,3 @@ export default function PublicProfileProjectsPage({
     </div>
   );
 }
-

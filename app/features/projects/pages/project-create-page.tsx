@@ -20,6 +20,7 @@ import { saveProjectMessages } from "~/features/projects/queries";
 import ProjectDetailLayout from "~/features/projects/layouts/project-detail-layout";
 import ProjectWorkspacePage from "~/features/projects/pages/project-workspace-page";
 import { LoaderCircle } from "lucide-react";
+import { upsertShortWorkflowKeyword } from "../short-workflow";
 
 export const meta: MetaFunction = () => {
   return [
@@ -164,6 +165,16 @@ export async function action({ request }: ActionFunctionArgs) {
       },
     });
 
+    const shortWorkflowKeyword = await upsertShortWorkflowKeyword(client, {
+      projectRowId: project.id,
+      ownerProfileId,
+      keyword: data.keyword,
+      reference: JSON.stringify({
+        keyword: data.keyword,
+        aspectRatio: data.aspectRatio || "9:16",
+      }),
+    });
+
     // 프로젝트 단계 초기화 (serial ID 사용)
     await createInitialProjectSteps(client, project.id);
 
@@ -185,7 +196,7 @@ export async function action({ request }: ActionFunctionArgs) {
             },
           },
           {
-            role: "agent",
+            role: "assistant",
             content: `네, "${data.keyword}" 주제로 ${data.aspectRatio || "9:16"} 비율의 수익형 쇼츠를 만들어드릴게요! 몇 가지 정보를 더 알려주시면 더 정확한 기획서를 작성할 수 있어요.`,
             stepKey: "brief",
             metadata: {
@@ -206,6 +217,7 @@ export async function action({ request }: ActionFunctionArgs) {
       status: project.status,
       created_at: project.created_at,
       metadata: project.metadata as Record<string, unknown> | undefined,
+      shortWorkflowKeyword,
     }).catch((error) => {
       console.error("n8n 웹훅 호출 실패 (프로젝트 생성은 계속 진행):", error);
     });

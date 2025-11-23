@@ -66,6 +66,7 @@ export async function triggerProjectStartWebhook(projectData: {
   status: string;
   created_at: string;
   metadata?: Record<string, unknown>;
+  shortWorkflowKeyword?: Record<string, unknown> | null;
 }): Promise<void> {
   await triggerN8nWebhook("project_started", {
     project_id: projectData.project_id,
@@ -74,6 +75,7 @@ export async function triggerProjectStartWebhook(projectData: {
     status: projectData.status,
     created_at: projectData.created_at,
     metadata: projectData.metadata || {},
+    short_workflow_keyword: projectData.shortWorkflowKeyword || undefined,
   });
 }
 
@@ -87,6 +89,7 @@ export async function triggerProjectStepStartWebhook(stepData: {
   step_status: string;
   started_at?: string;
   metadata?: Record<string, unknown>;
+  shortWorkflowKeyword?: Record<string, unknown> | null;
 }): Promise<void> {
   await triggerN8nWebhook("project_step_started", {
     project_id: stepData.project_id,
@@ -94,5 +97,6 @@ export async function triggerProjectStepStartWebhook(stepData: {
     step_status: stepData.step_status,
     started_at: stepData.started_at || new Date().toISOString(),
     ...(stepData.metadata && { metadata: stepData.metadata }),
+    short_workflow_keyword: stepData.shortWorkflowKeyword || undefined,
   });
 }

@@ -10,6 +10,7 @@ import { projects } from "~/features/projects/schema";
 import { formatBudgetLabel, formatCount, formatDateLabel, formatPercent, formatTimezoneLabel } from "~/lib/format";
 import { DEFAULT_PROFILE_ID } from "./constants";
 import { getPlanOverview } from "./plan-service";
+import { getProjectRouteByStatus } from "~/features/projects/utils/navigation";
 
 type ProfileSummary = {
   name: string;
@@ -43,6 +44,7 @@ type ProfileProjectCard = {
   ctr: string;
   budget: string;
   thumbnail?: string | null;
+  status?: string | null;
 };
 
 export type ProfileSettingsData = {
@@ -145,6 +147,7 @@ export async function getProfileSettingsData(
   const projectsRecords = await db
     .select({
       id: projects.id,
+      projectId: projects.projectId,
       title: projects.title,
       description: projects.description,
       likes: projects.likes,
@@ -152,6 +155,7 @@ export async function getProfileSettingsData(
       budget: projects.budget,
       thumbnail: projects.thumbnail,
       visibility: projects.visibility,
+      status: projects.status,
     })
     .from(projects)
     .where(eq(projects.ownerProfileId, profileId))
@@ -175,19 +179,24 @@ export async function getProfileSettingsData(
         ctaLabel: item.ctaLabel ?? "설정하기",
       })),
     plan,
-    projects: projectsRecords.map((project) => ({
-      id: String(project.id),
-      to: `/my/dashboard/project/${project.id}/analytics`,
-      title: project.title,
-      description: formatProjectDescription(
-        project.description,
-        project.visibility
-      ),
-      likes: formatCount(project.likes),
-      ctr: formatPercent(project.ctr),
-      budget: formatBudgetLabel(project.budget),
-      thumbnail: project.thumbnail,
-    })),
+    projects: projectsRecords.map((project) => {
+      const projectIdString =
+        project.projectId ?? String(project.id ?? "");
+
+      return {
+        id: projectIdString,
+        to: getProjectRouteByStatus(projectIdString, project.status),
+        title: project.title,
+        description: formatProjectDescription(
+          project.description,
+          project.visibility
+        ),
+        likes: formatCount(project.likes),
+        ctr: formatPercent(project.ctr),
+        budget: formatBudgetLabel(project.budget),
+        thumbnail: project.thumbnail,
+        status: project.status,
+      };
+    }),
   };
 }
-

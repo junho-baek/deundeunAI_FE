@@ -13,7 +13,11 @@ import "./app.css";
 import Navigation from "./common/components/navigation";
 import { cn } from "./lib/utils";
 import { makeSSRClient } from "./lib/supa-client";
-import { getUserById, getCreditBalance } from "./features/users/queries";
+import {
+  getUserById,
+  getCreditBalance,
+  countUnreadNotifications,
+} from "./features/users/queries";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -58,6 +62,8 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
         const profile = await getUserById(client, { id: user.id });
         let creditBalance = 0;
         
+        let hasNotifications = false;
+
         if (profile?.id) {
           try {
             const balance = await getCreditBalance(client, profile.id);
@@ -66,31 +72,37 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
             // 크레딧 조회 실패는 치명적이지 않음
             console.error("크레딧 잔액 조회 실패:", error);
           }
+
+          const unreadCount = await countUnreadNotifications(
+            client,
+            profile.id
+          );
+          hasNotifications = unreadCount > 0;
         }
         
-        return { user, profile, creditBalance };
+        return { user, profile, creditBalance, hasNotifications };
       } catch (error: any) {
         // Rate limit 에러인 경우 재시도하지 않도록 처리
         if (error?.status === 429 || error?.code === "over_request_rate_limit") {
           console.error("Rate limit 도달 - 프로필 조회 건너뜀:", error);
-          return { user, profile: null, creditBalance: 0 };
+          return { user, profile: null, creditBalance: 0, hasNotifications: false };
         }
         // 프로필이 없을 수 있음 (아직 생성되지 않았을 수 있음)
         console.error("프로필 조회 실패:", error);
-        return { user, profile: null, creditBalance: 0 };
+        return { user, profile: null, creditBalance: 0, hasNotifications: false };
       }
     }
     
-    return { user: null, profile: null, creditBalance: 0 };
+    return { user: null, profile: null, creditBalance: 0, hasNotifications: false };
   } catch (error: any) {
     // Rate limit 에러인 경우 재시도하지 않도록 처리
     if (error?.status === 429 || error?.code === "over_request_rate_limit") {
       console.error("Rate limit 도달 - 인증 확인 건너뜀:", error);
-      return { user: null, profile: null, creditBalance: 0 };
+      return { user: null, profile: null, creditBalance: 0, hasNotifications: false };
     }
     // 인증 확인 실패 시 null 반환 (인증되지 않은 상태로 처리)
     console.error("사용자 인증 상태 확인 실패:", error);
-    return { user: null, profile: null, creditBalance: 0 };
+    return { user: null, profile: null, creditBalance: 0, hasNotifications: false };
   }
 };
 
@@ -129,7 +141,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
             avatar={loaderData?.profile?.avatar_url || undefined}
             name={loaderData?.profile?.name || undefined}
             creditBalance={loaderData?.creditBalance || 0}
-            hasNotifications={true}
+            hasNotifications={loaderData?.hasNotifications ?? false}
             hasMessages={true}
             compact={isAuth}
           />

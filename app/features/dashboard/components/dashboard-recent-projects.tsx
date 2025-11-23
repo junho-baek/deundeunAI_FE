@@ -3,6 +3,7 @@ import { Await } from "react-router";
 import { DashboardSection } from "./dashboard-section";
 import { DashboardProjectGrid } from "./dashboard-project-grid";
 import ProjectCard from "~/features/projects/components/project-card";
+import { getProjectRouteByStatus } from "~/features/projects/utils/navigation";
 
 export type ProjectData = {
   project_id: string;
@@ -12,6 +13,7 @@ export type ProjectData = {
   ctr: number | null;
   budget: number | null;
   thumbnail?: string | null;
+  status?: string | null;
 };
 
 export type DashboardRecentProjectsProps = {
@@ -21,7 +23,6 @@ export type DashboardRecentProjectsProps = {
   formatNumber: (num: number) => string;
   formatCTR: (ctr: number | null | undefined) => string | undefined;
   formatBudget: (budget: number | null | undefined) => string | undefined;
-  getProjectUrl: (projectId: string) => string;
   emptyMessage?: string;
   className?: string;
 };
@@ -46,7 +47,6 @@ export function DashboardRecentProjects({
   formatNumber,
   formatCTR,
   formatBudget,
-  getProjectUrl,
   emptyMessage = "최근 프로젝트가 없습니다. 새 프로젝트를 생성해보세요.",
   className,
 }: DashboardRecentProjectsProps) {
@@ -65,13 +65,17 @@ export function DashboardRecentProjects({
                 <ProjectCard
                   key={project.project_id}
                   id={project.project_id}
-                  to={getProjectUrl(project.project_id)}
+                  to={getProjectRouteByStatus(
+                    project.project_id,
+                    project.status
+                  )}
                   title={project.title}
                   description={project.description || undefined}
                   likes={formatNumber(project.likes)}
                   ctr={formatCTR(project.ctr)}
                   budget={formatBudget(project.budget)}
                   thumbnail={project.thumbnail || undefined}
+                  status={project.status || undefined}
                 />
               )}
               emptyMessage={emptyMessage}
@@ -82,4 +86,3 @@ export function DashboardRecentProjects({
     </DashboardSection>
   );
 }
-

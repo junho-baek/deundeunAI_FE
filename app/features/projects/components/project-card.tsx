@@ -162,12 +162,6 @@ export default function ProjectCard(props: ProjectCardProps) {
               <div className="h-full w-full bg-linear-to-b from-muted/40 to-muted-foreground/10" />
             ) : null}
 
-            {/* 우상단 상태 배지 */}
-            {!isCreate && status && (
-              <div className="absolute right-3 top-3 z-20">
-                {getStatusBadge(status)}
-              </div>
-            )}
             {/* 우상단 볼륨 버튼 (장식용) - 상태 배지가 없을 때만 표시 */}
             {!isCreate && !status && (
             <Button
@@ -180,8 +174,12 @@ export default function ProjectCard(props: ProjectCardProps) {
             </Button>
             )}
 
-            {/* 좌하단 Recreate 버튼 */}
-            {!isCreate && (<Button className="absolute left-3 bottom-3 rounded-full shadow">Recreate →</Button>)}
+            {/* 좌하단 상태 배지 */}
+            {!isCreate && status && (
+              <div className="absolute left-3 bottom-3 z-20">
+                {getStatusBadge(status)}
+              </div>
+            )}
           </div>
         </Link>
       </CardContent>
@@ -191,11 +189,6 @@ export default function ProjectCard(props: ProjectCardProps) {
         <Link prefetch="viewport" to={to} className="block">
           <div className="flex items-start justify-between gap-2 mb-1">
             <CardTitle className="text-base leading-tight line-clamp-2 flex-1">{title}</CardTitle>
-            {!isCreate && status && (
-              <div className="flex-shrink-0 mt-0.5">
-                {getStatusBadge(status)}
-              </div>
-            )}
           </div>
           {description ? <CardDescription>{description}</CardDescription> : null}
         </Link>
@@ -224,5 +217,4 @@ export default function ProjectCard(props: ProjectCardProps) {
     </Card>
   );
 }
-
 
