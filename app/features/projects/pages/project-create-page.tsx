@@ -6,11 +6,17 @@ import {
   type MetaFunction,
   useNavigation,
 } from "react-router";
+import { z } from "zod";
 import { generateProjectUUID, getCurrentUserName } from "~/lib/uuid-utils";
-import { createProject, createInitialProjectSteps } from "~/features/projects/queries";
+import { createProject, createInitialProjectSteps } from "~/features/projects/mutations";
 import { makeSSRClient } from "~/lib/supa-client";
-import { getUserById } from "~/features/users/queries";
+import { getLoggedInProfileId } from "~/features/users/queries";
 import { triggerProjectStartWebhook } from "~/lib/n8n-webhook";
+import {
+  generateMockProjectTitle,
+  generateMockProjectDescription,
+} from "~/features/projects/utils/mock-data";
+import { saveProjectMessages } from "~/features/projects/queries";
 import ProjectDetailLayout from "~/features/projects/layouts/project-detail-layout";
 import ProjectWorkspacePage from "~/features/projects/pages/project-workspace-page";
 import { LoaderCircle } from "lucide-react";
@@ -27,7 +33,26 @@ export const meta: MetaFunction = () => {
   ];
 };
 
+/**
+ * 프로젝트 생성 폼 스키마
+ * mutations.ts에서도 사용할 수 있도록 export
+ */
+export const formSchema = z.object({
+  keyword: z
+    .string()
+    .min(1, "프로젝트 키워드를 입력해주세요.")
+    .max(100, "프로젝트 키워드는 100자 이하여야 합니다.")
+    .trim(),
+  aspectRatio: z.enum(["9:16", "16:9", "1:1"]).optional(),
+  projectId: z.string().uuid("유효하지 않은 프로젝트 ID 형식입니다.").optional(),
+  images: z.array(z.instanceof(File)).optional(),
+});
+
 export async function loader({ request }: LoaderFunctionArgs) {
+  // 인증 체크 (로그인하지 않은 경우 자동으로 /auth/login으로 리다이렉트)
+  const { client } = makeSSRClient(request);
+  await getLoggedInProfileId(client);
+
   // GET 요청으로 접근한 경우 프로젝트를 생성하지 않고
   // 워크스페이스 레이아웃의 loader를 호출 (프로젝트는 첫 메시지 제출 시 생성됨)
   // project-detail-layout.tsx의 loader를 재사용하되 projectId는 "create"로 설정
@@ -67,69 +92,111 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const { client } = makeSSRClient(request);
   
-  // 현재 사용자 정보 가져오기
-  const {
-    data: { user },
-  } = await client.auth.getUser();
-
-  if (!user) {
-    return {
-      error: "로그인이 필요합니다.",
-    };
-  }
-
-  // 사용자 프로필 정보 가져오기
+  // 로그인한 사용자의 프로필 ID 가져오기 (인증 체크 포함)
   let ownerProfileId: string;
   try {
-    const profile = await getUserById(client, { id: user.id });
-    if (!profile?.id) {
-      return {
-        error: "프로필을 찾을 수 없습니다.",
-      };
-    }
-    ownerProfileId = profile.id;
+    ownerProfileId = await getLoggedInProfileId(client);
   } catch (error) {
-    console.error("프로필 조회 실패:", error);
+    // getLoggedInProfileId는 redirect를 throw하거나 에러를 throw함
+    if (error && typeof error === "object" && "status" in error) {
+      throw error; // redirect 에러는 그대로 전파
+    }
     return {
-      error: "프로필을 불러오는데 실패했습니다.",
+      fieldErrors: {
+        keyword: ["로그인이 필요합니다."],
+      },
     };
   }
 
   const formData = await request.formData();
-  const keyword = formData.get("keyword");
-  const aspectRatio = formData.get("aspectRatio");
-  const projectIdFromForm = formData.get("projectId") as string | null;
+  
+  // FormData를 객체로 변환 (Zod 검증을 위해)
+  const formObject: Record<string, unknown> = {};
+  const images: File[] = [];
+  
+  for (const [key, value] of formData.entries()) {
+    if (key === "images") {
+      // images는 배열로 처리
+      if (value instanceof File) {
+        images.push(value);
+      }
+    } else {
+      formObject[key] = value;
+    }
+  }
+  
+  // images 배열이 있으면 추가
+  if (images.length > 0) {
+    formObject.images = images;
+  }
 
-  // 유효성 검사
-  if (!keyword || typeof keyword !== "string" || !keyword.trim()) {
+  // Zod 스키마로 유효성 검사
+  const { success, data, error } = formSchema.safeParse(formObject);
+
+  if (!success) {
     return {
-      error: "프로젝트 키워드를 입력해주세요.",
+      fieldErrors: error.flatten().fieldErrors,
     };
   }
 
   // 프로젝트 ID 생성 (폼에서 전달된 것이 있으면 사용, 없으면 새로 생성)
   const userName = getCurrentUserName();
-  const projectId = projectIdFromForm || generateProjectUUID(userName, keyword.trim());
+  const projectId = data.projectId || generateProjectUUID(userName, data.keyword);
 
   // 프로젝트 생성
   try {
+    // 키워드 기반으로 실감나는 제목과 설명 생성
+    const projectTitle = generateMockProjectTitle(data.keyword);
+    const projectDescription = generateMockProjectDescription(data.keyword);
+
     const project = await createProject(client, {
       project_id: projectId, // 생성한 UUID 사용
       owner_profile_id: ownerProfileId, // 실제 사용자 프로필 ID 사용
-      title: keyword.trim(),
-      description: undefined,
+      title: projectTitle,
+      description: projectDescription,
       status: "draft",
       visibility: "private",
       config: {
-        aspectRatio: typeof aspectRatio === "string" ? aspectRatio : "9:16",
+        aspectRatio: data.aspectRatio || "9:16",
       },
       metadata: {
-        keyword: keyword.trim(),
+        keyword: data.keyword,
       },
     });
 
     // 프로젝트 단계 초기화 (serial ID 사용)
     await createInitialProjectSteps(client, project.id);
+
+    // 초기 채팅 내역 저장 (DB에 저장하여 나중에 복원 가능하도록)
+    try {
+      await saveProjectMessages(client, {
+        projectId: project.project_id,
+        messages: [
+          {
+            role: "user",
+            content: data.keyword,
+            aspectRatio: data.aspectRatio || "9:16",
+            attachments: images.map((img) => ({
+              name: img.name,
+              size: img.size,
+            })),
+            metadata: {
+              isInitialMessage: true,
+            },
+          },
+          {
+            role: "agent",
+            content: `네, "${data.keyword}" 주제로 ${data.aspectRatio || "9:16"} 비율의 수익형 쇼츠를 만들어드릴게요! 몇 가지 정보를 더 알려주시면 더 정확한 기획서를 작성할 수 있어요.`,
+            stepKey: "brief",
+            metadata: {
+              isInitialResponse: true,
+            },
+          },
+        ],
+      });
+    } catch (error) {
+      console.error("초기 채팅 내역 저장 실패 (프로젝트 생성은 계속 진행):", error);
+    }
 
     // n8n 워크플로우 트리거 (비동기, 에러 무시)
     triggerProjectStartWebhook({
@@ -144,9 +211,9 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     const params = new URLSearchParams();
-    params.set("keyword", keyword.trim());
-    if (typeof aspectRatio === "string" && aspectRatio) {
-      params.set("aspectRatio", aspectRatio);
+    params.set("keyword", data.keyword);
+    if (data.aspectRatio) {
+      params.set("aspectRatio", data.aspectRatio);
     }
 
     const next = `/my/dashboard/project/${project.project_id}${
@@ -164,7 +231,11 @@ export async function action({ request }: ActionFunctionArgs) {
     
     // 다른 에러는 actionData로 반환
     return {
-      error: error instanceof Error ? error.message : "프로젝트 생성에 실패했습니다.",
+      fieldErrors: {
+        keyword: [
+          error instanceof Error ? error.message : "프로젝트 생성에 실패했습니다.",
+        ],
+      },
     };
   }
 }
@@ -173,14 +244,28 @@ export default function ProjectCreatePage({ loaderData, actionData }: Route.Comp
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   
+  // fieldErrors 추출
+  const fieldErrors =
+    actionData && "fieldErrors" in actionData
+      ? (actionData.fieldErrors as Record<string, string[] | undefined>)
+      : undefined;
+
   // project-detail-layout.tsx를 재사용하여 워크스페이스 UI 표시
   // 프로젝트는 아직 생성되지 않았으므로 null로 전달
   // ProjectWorkspacePage에 workspaceData: null을 props로 전달
   return (
     <ProjectDetailLayout loaderData={loaderData}>
-      {actionData?.error && (
+      {fieldErrors && (
         <div className="p-4 mb-4 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-          <p className="text-sm text-red-600 dark:text-red-400">{actionData.error}</p>
+          <div className="space-y-1">
+            {Object.entries(fieldErrors).map(([field, errors]) =>
+              errors?.map((error, index) => (
+                <p key={`${field}-${index}`} className="text-sm text-red-600 dark:text-red-400">
+                  {error}
+                </p>
+              ))
+            )}
+          </div>
         </div>
       )}
       {isSubmitting && (

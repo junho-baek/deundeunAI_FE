@@ -31,6 +31,7 @@ export type ChatInitFormProps = {
   submitLabel?: string;
   onSubmit?: (values: Record<string, string[]>) => void | Promise<void>;
   className?: string;
+  actionData?: { success?: boolean; ok?: boolean; error?: string };
 };
 
 export function ChatInitForm({
@@ -38,8 +39,16 @@ export function ChatInitForm({
   submitLabel = "다음",
   onSubmit,
   className,
+  actionData,
 }: ChatInitFormProps) {
   const [selected, setSelected] = React.useState<Record<string, string[]>>({});
+
+  // Form 리셋 패턴: actionData가 성공이면 선택 상태 리셋
+  React.useEffect(() => {
+    if (actionData?.success || actionData?.ok) {
+      setSelected({});
+    }
+  }, [actionData?.success, actionData?.ok]);
 
   const toggle = (sectionId: string, optionId: string, multiple?: boolean) => {
     setSelected((prev) => {

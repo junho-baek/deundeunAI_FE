@@ -32,10 +32,11 @@ export function ChatConfirmCard({
 }: ChatConfirmCardProps) {
   const computedPrimary =
     primaryActionLabel ?? (mode === "text" ? "수정" : "선택 완료");
+  // attention 효과를 최소화 (너무 흔들리지 않도록)
+  // pulse만 사용하고, shake와 bounce는 제거하거나 매우 약하게
   const animationClass =
     (attention === "pulse" && "animate-pulse") ||
-    (attention === "bounce" && "animate-bounce") ||
-    (attention === "shake" && "animate-shake-x") ||
+    // shake와 bounce는 제거 (너무 흔들림)
     "";
 
   return (

@@ -135,7 +135,15 @@ export default function App({ loaderData }: Route.ComponentProps) {
           />
         )}
         <div className={contentClass}>
-          <Outlet />
+          <Outlet
+            context={{
+              isLoggedIn,
+              name: loaderData?.profile?.name,
+              username: loaderData?.profile?.slug,
+              avatar: loaderData?.profile?.avatar_url,
+              creditBalance: loaderData?.creditBalance || 0,
+            }}
+          />
         </div>
       </div>
     </div>

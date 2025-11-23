@@ -39,7 +39,10 @@ export default [
   ...prefix("/users/:username", [
     layout("features/users/layouts/public-profile-layout.tsx", [
       index("features/users/pages/public-profile-page.tsx"),
-      route("projects", "features/users/pages/public-profile-projects-page.tsx"),
+      route(
+        "projects",
+        "features/users/pages/public-profile-projects-page.tsx"
+      ),
     ]),
   ]),
 
@@ -93,6 +96,10 @@ export default [
             layout("features/projects/layouts/project-detail-layout.tsx", [
               index("features/projects/pages/project-workspace-page.tsx"),
               route(
+                "form/submit",
+                "features/projects/pages/project-form-submit-action.tsx"
+              ),
+              route(
                 "generate",
                 "features/projects/pages/project-generate-page.tsx"
               ),
@@ -112,6 +119,56 @@ export default [
                 "status",
                 "features/projects/pages/project-status-page.tsx"
               ),
+              // Brief Actions
+              route(
+                "brief/submit",
+                "features/projects/pages/project-brief-submit-action.tsx"
+              ),
+              route(
+                "brief/update",
+                "features/projects/pages/project-brief-update-action.tsx"
+              ),
+              // Script Actions
+              route(
+                "script/submit",
+                "features/projects/pages/project-script-submit-action.tsx"
+              ),
+              route(
+                "script/update",
+                "features/projects/pages/project-script-update-action.tsx"
+              ),
+              // Narration Actions
+              route(
+                "narration/regenerate",
+                "features/projects/pages/project-narration-regenerate-action.tsx"
+              ),
+              route(
+                "narration/submit",
+                "features/projects/pages/project-narration-submit-action.tsx"
+              ),
+              // Images Actions
+              route(
+                "images/regenerate",
+                "features/projects/pages/project-images-regenerate-action.tsx"
+              ),
+              route(
+                "images/submit",
+                "features/projects/pages/project-images-submit-action.tsx"
+              ),
+              // Videos Actions
+              route(
+                "videos/regenerate",
+                "features/projects/pages/project-videos-regenerate-action.tsx"
+              ),
+              route(
+                "videos/submit",
+                "features/projects/pages/project-videos-submit-action.tsx"
+              ),
+              // Deploy Action
+              route(
+                "deploy",
+                "features/projects/pages/project-deploy-action.tsx"
+              ),
             ]),
             route(
               "analytics",
@@ -123,6 +180,11 @@ export default [
         // Settings
         ...prefix("/settings", [
           route("profile", "features/users/pages/profile-page.tsx"),
+          route("profile/edit", "features/users/pages/profile-edit-page.tsx"),
+          route(
+            "profile/avatar",
+            "features/users/pages/profile-avatar-upload-action.tsx"
+          ),
           route("billing", "features/users/pages/billing-page.tsx"),
         ]),
       ]),

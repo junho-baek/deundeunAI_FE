@@ -4,6 +4,8 @@ import {
   type MetaFunction,
   useLoaderData,
   useParams,
+  useFetcher,
+  redirect,
 } from "react-router";
 
 import { ProjectAccordion } from "~/features/projects/components/project-accordion";
@@ -13,9 +15,27 @@ import ProjectScriptAudio from "~/features/projects/components/project-script-au
 import ProjectImageSelect from "~/features/projects/components/project-image-select";
 import ProjectVideoSelect from "~/features/projects/components/project-video-select";
 import ProjectFinalVideo from "~/features/projects/components/project-final-video";
+import ProjectBriefReviewForm from "~/features/projects/components/project-brief-review-form";
+import ProjectBriefEditor from "~/features/projects/components/project-brief-editor";
+import ProjectScriptReviewForm from "~/features/projects/components/project-script-review-form";
+import ProjectScriptEditor from "~/features/projects/components/project-script-editor";
+import ProjectNarrationReviewForm from "~/features/projects/components/project-narration-review-form";
+import ProjectFinalReviewForm from "~/features/projects/components/project-final-review-form";
 import { useProjectDetail } from "~/features/projects/layouts/project-detail-layout";
-import { getProjectWorkspaceData } from "~/features/projects/queries";
+import {
+  getProjectWorkspaceData,
+  getProjectSteps,
+} from "~/features/projects/queries";
 import { makeSSRClient } from "~/lib/supa-client";
+import {
+  generateMockBrief,
+  generateMockScript,
+  generateMockNarrationSegments,
+  generateMockProjectTitle,
+  generateMockProjectDescription,
+  MOCK_IMAGE_URLS,
+  MOCK_VIDEO_URLS,
+} from "~/features/projects/utils/mock-data";
 
 export const meta: MetaFunction = () => {
   return [
@@ -44,28 +64,46 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     };
   }
 
-  // 이벤트 트래킹 (에러가 있어도 페이지는 계속 로드)
   try {
-    await client.rpc("track_event", {
-      event_type: "project_workspace_view",
-      event_data: {
-        project_id: projectId,
-      },
-    });
-  } catch (error) {
-    console.error("이벤트 트래킹 실패:", error);
-  }
+    // 프로젝트 소유자 확인 (접근 제어)
+    const { getLoggedInProfileId } = await import("~/features/users/queries");
+    const { getProjectByProjectId } = await import("../queries");
 
-  try {
-    const workspaceData = await getProjectWorkspaceData(client, projectId);
+    const ownerProfileId = await getLoggedInProfileId(client);
+    const project = await getProjectByProjectId(client, projectId);
+
+    // 프로젝트가 없거나 소유자가 아닌 경우 접근 거부
+    if (!project || project.owner_profile_id !== ownerProfileId) {
+      throw redirect("/my/dashboard/projects");
+    }
+
+    // 이벤트 트래킹 (에러가 있어도 페이지는 계속 로드)
+    try {
+      await client.rpc("track_event", {
+        event_type: "project_workspace_view",
+        event_data: {
+          project_id: projectId,
+        },
+      });
+    } catch (error) {
+      console.error("이벤트 트래킹 실패:", error);
+    }
+
+    const [workspaceData, projectSteps] = await Promise.all([
+      getProjectWorkspaceData(client, projectId),
+      getProjectSteps(client, projectId),
+    ]);
     return {
       workspaceData,
+      projectSteps,
     };
   } catch (error) {
+    // redirect 에러는 그대로 전파
+    if (error && typeof error === "object" && "status" in error) {
+      throw error;
+    }
     console.error("워크스페이스 데이터 로드 실패:", error);
-    return {
-      workspaceData: null,
-    };
+    throw redirect("/my/dashboard/projects");
   }
 }
 
@@ -79,13 +117,16 @@ export default function ProjectWorkspacePage({
   // project-create-page.tsx의 loader 데이터도 처리 가능하도록 any 타입 사용
   const loaderData = useLoaderData<any>();
 
-  // loaderData에서 workspaceData 추출 (여러 형식 지원)
+  // loaderData에서 workspaceData와 projectSteps 추출 (여러 형식 지원)
   const loaderWorkspaceData = loaderData?.workspaceData ?? null;
+  const loaderProjectSteps = loaderData?.projectSteps ?? [];
   const workspaceData = workspaceDataProp ?? loaderWorkspaceData ?? null;
+  const projectSteps = loaderProjectSteps;
 
   // projectId는 optional (project-create-page.tsx에서는 없을 수 있음)
   const params = useParams();
   const projectId = params?.projectId;
+
   const {
     imageTimelines,
     selectedImages,
@@ -97,6 +138,70 @@ export default function ProjectWorkspacePage({
     done,
     narrationSegments: defaultNarrationSegments,
   } = useProjectDetail();
+
+  // 완료된 단계 확인 및 다음 단계 결정
+  const stepOrder = [
+    "brief",
+    "script",
+    "narration",
+    "images",
+    "videos",
+    "final",
+  ];
+  const nextStepToResume = React.useMemo(() => {
+    if (
+      !projectSteps ||
+      projectSteps.length === 0 ||
+      !projectId ||
+      projectId === "create"
+    ) {
+      return null;
+    }
+
+    const stepMap = new Map(
+      projectSteps.map((s: { key: string; status: string }) => [
+        s.key,
+        s.status,
+      ])
+    );
+
+    // 완료되지 않은 첫 번째 단계 찾기
+    for (const stepKey of stepOrder) {
+      const status = stepMap.get(stepKey);
+      if (status !== "completed") {
+        return stepKey;
+      }
+    }
+
+    // 모든 단계가 완료되었으면 null 반환
+    return null;
+  }, [projectSteps, projectId]);
+
+  // 기본 Accordion 값 설정 (다음 단계로 자동 열기)
+  const defaultAccordionValue = React.useMemo(() => {
+    if (nextStepToResume) {
+      const stepIndex = stepOrder.indexOf(nextStepToResume);
+      return `step-${stepIndex + 1}`;
+    }
+    return "step-1";
+  }, [nextStepToResume]);
+
+  // 편집 모드 상태 관리
+  const [isEditingBrief, setIsEditingBrief] = React.useState(false);
+  const [isEditingScript, setIsEditingScript] = React.useState(false);
+
+  // Fetcher for actions
+  const briefSubmitFetcher = useFetcher();
+  const briefUpdateFetcher = useFetcher();
+  const scriptSubmitFetcher = useFetcher();
+  const scriptUpdateFetcher = useFetcher();
+  const narrationRegenerateFetcher = useFetcher();
+  const narrationSubmitFetcher = useFetcher();
+  const imagesRegenerateFetcher = useFetcher();
+  const imagesSubmitFetcher = useFetcher();
+  const videosRegenerateFetcher = useFetcher();
+  const videosSubmitFetcher = useFetcher();
+  const deployFetcher = useFetcher();
 
   // 데이터베이스에서 가져온 문서 데이터 사용
   const briefDocument = React.useMemo(() => {
@@ -113,29 +218,28 @@ export default function ProjectWorkspacePage({
     );
   }, [workspaceData]);
 
-  // 기획서 마크다운 (데이터베이스에서 가져오거나 기본값)
+  // 프로젝트 키워드 추출 (제목이나 설명에서)
+  const projectKeyword = React.useMemo(() => {
+    if (workspaceData?.project?.title) {
+      // 제목에서 키워드 추출 (간단한 방법)
+      const title = workspaceData.project.title;
+      const keywords = title
+        .split(/[,\s]+/)
+        .filter((w: string) => w.length > 2);
+      return keywords[0] || undefined;
+    }
+    return undefined;
+  }, [workspaceData]);
+
+  // 기획서 마크다운 (데이터베이스에서 가져오거나 실감나는 기본값)
   const projectBriefMd = React.useMemo(() => {
     if (briefDocument?.content) {
       return briefDocument.content;
     }
-    return `# 영상 프로젝트 기획서
+    return generateMockBrief(projectKeyword);
+  }, [briefDocument, projectKeyword]);
 
-**목표**: 수익형 쇼츠 제작
-
-## 콘셉트
-- 강렬한 훅으로 시작
-- 정보 전달형 전개
-- 마지막에 명확한 CTA
-
-## 타깃
-- 20-30대 직장인
-
-## 포맷
-- 비율 9:16
-- 길이 00:30`;
-  }, [briefDocument]);
-
-  // 대본 단락 (데이터베이스에서 가져오거나 기본값)
+  // 대본 단락 (데이터베이스에서 가져오거나 실감나는 기본값)
   const scriptParagraphs = React.useMemo(() => {
     if (
       scriptDocument?.content_json &&
@@ -150,11 +254,9 @@ export default function ProjectWorkspacePage({
         .map((p: string) => p.trim())
         .filter((p: string) => p.length > 0);
     }
-    return [
-      "00:00 / 00:10 Lorem ipsum dolor sit amet consectetur adipisicing elit...",
-      "00:11 / 00:20 Lorem ipsum dolor sit amet consectetur adipisicing elit...",
-    ];
-  }, [scriptDocument]);
+    // 실감나는 스크립트 샘플 사용
+    return generateMockScript(projectKeyword);
+  }, [scriptDocument, projectKeyword]);
 
   // 오디오 세그먼트 (데이터베이스에서 가져오거나 기본값)
   const narrationSegmentsFromDb = React.useMemo(() => {
@@ -174,8 +276,9 @@ export default function ProjectWorkspacePage({
     return null; // 기본값은 useProjectDetail에서 가져옴
   }, [workspaceData]);
 
-  // 데이터베이스에서 가져온 오디오 세그먼트가 있으면 사용, 없으면 기본값 사용
-  const narrationSegments = narrationSegmentsFromDb || defaultNarrationSegments;
+  // 데이터베이스에서 가져온 오디오 세그먼트가 있으면 사용, 없으면 실감나는 기본값 사용
+  const narrationSegments =
+    narrationSegmentsFromDb || generateMockNarrationSegments();
 
   // 이미지 URL 목록 (미디어 자산에서 가져오기)
   const imageUrls = React.useMemo(() => {
@@ -206,92 +309,269 @@ export default function ProjectWorkspacePage({
     return null;
   }, [workspaceData, videoUrls]);
 
+  // Action handlers
+  const handleBriefEdit = React.useCallback(() => {
+    setIsEditingBrief(true);
+  }, []);
+
+  const handleBriefCancel = React.useCallback(() => {
+    setIsEditingBrief(false);
+  }, []);
+
+  const handleBriefSave = React.useCallback(
+    async (content: string) => {
+      if (!projectId) return;
+      const formData = new FormData();
+      formData.append("content", content);
+      briefUpdateFetcher.submit(formData, {
+        method: "post",
+        action: `/my/dashboard/project/${projectId}/brief/update`,
+      });
+      setIsEditingBrief(false);
+    },
+    [projectId, briefUpdateFetcher]
+  );
+
+  const handleBriefApprove = React.useCallback(() => {
+    if (!projectId) return;
+    briefSubmitFetcher.submit(
+      {},
+      {
+        method: "post",
+        action: `/my/dashboard/project/${projectId}/brief/submit`,
+      }
+    );
+  }, [projectId, briefSubmitFetcher]);
+
+  const handleScriptEdit = React.useCallback(() => {
+    setIsEditingScript(true);
+  }, []);
+
+  const handleScriptCancel = React.useCallback(() => {
+    setIsEditingScript(false);
+  }, []);
+
+  const handleScriptSave = React.useCallback(
+    async (content: string | string[]) => {
+      if (!projectId) return;
+      const formData = new FormData();
+      formData.append("content", JSON.stringify(content));
+      scriptUpdateFetcher.submit(formData, {
+        method: "post",
+        action: `/my/dashboard/project/${projectId}/script/update`,
+      });
+      setIsEditingScript(false);
+    },
+    [projectId, scriptUpdateFetcher]
+  );
+
+  const handleScriptApprove = React.useCallback(() => {
+    if (!projectId) return;
+    scriptSubmitFetcher.submit(
+      {},
+      {
+        method: "post",
+        action: `/my/dashboard/project/${projectId}/script/submit`,
+      }
+    );
+  }, [projectId, scriptSubmitFetcher]);
+
+  const handleNarrationRegenerate = React.useCallback(() => {
+    if (!projectId) return;
+    narrationRegenerateFetcher.submit(
+      {},
+      {
+        method: "post",
+        action: `/my/dashboard/project/${projectId}/narration/regenerate`,
+      }
+    );
+  }, [projectId, narrationRegenerateFetcher]);
+
+  const handleNarrationApprove = React.useCallback(() => {
+    if (!projectId) return;
+    narrationSubmitFetcher.submit(
+      {},
+      {
+        method: "post",
+        action: `/my/dashboard/project/${projectId}/narration/submit`,
+      }
+    );
+  }, [projectId, narrationSubmitFetcher]);
+
+  const handleImagesRegenerate = React.useCallback(() => {
+    if (!projectId || selectedImages.length === 0) return;
+    const formData = new FormData();
+    formData.append("imageIds", JSON.stringify(selectedImages));
+    imagesRegenerateFetcher.submit(formData, {
+      method: "post",
+      action: `/my/dashboard/project/${projectId}/images/regenerate`,
+    });
+  }, [projectId, selectedImages, imagesRegenerateFetcher]);
+
+  const handleImagesApprove = React.useCallback(() => {
+    if (!projectId) return;
+    const formData = new FormData();
+    if (selectedImages.length > 0) {
+      formData.append("imageIds", JSON.stringify(selectedImages));
+    }
+    imagesSubmitFetcher.submit(formData, {
+      method: "post",
+      action: `/my/dashboard/project/${projectId}/images/submit`,
+    });
+  }, [projectId, selectedImages, imagesSubmitFetcher]);
+
+  const handleVideosRegenerate = React.useCallback(() => {
+    if (!projectId || selectedVideos.length === 0) return;
+    const formData = new FormData();
+    formData.append("videoIds", JSON.stringify(selectedVideos));
+    videosRegenerateFetcher.submit(formData, {
+      method: "post",
+      action: `/my/dashboard/project/${projectId}/videos/regenerate`,
+    });
+  }, [projectId, selectedVideos, videosRegenerateFetcher]);
+
+  const handleVideosApprove = React.useCallback(() => {
+    if (!projectId) return;
+    const formData = new FormData();
+    if (selectedVideos.length > 0) {
+      formData.append("videoId", String(selectedVideos[0]));
+    }
+    videosSubmitFetcher.submit(formData, {
+      method: "post",
+      action: `/my/dashboard/project/${projectId}/videos/submit`,
+    });
+  }, [projectId, selectedVideos, videosSubmitFetcher]);
+
+  const handleDeploy = React.useCallback(() => {
+    if (!projectId) return;
+    deployFetcher.submit(
+      {},
+      {
+        method: "post",
+        action: `/my/dashboard/project/${projectId}/deploy`,
+      }
+    );
+  }, [projectId, deployFetcher]);
+
+  // Action data에서 성공 메시지 확인 후 편집 모드 해제
+  React.useEffect(() => {
+    if (briefUpdateFetcher.data?.success) {
+      setIsEditingBrief(false);
+    }
+  }, [briefUpdateFetcher.data]);
+
+  React.useEffect(() => {
+    if (scriptUpdateFetcher.data?.success) {
+      setIsEditingScript(false);
+    }
+  }, [scriptUpdateFetcher.data]);
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto pr-1">
-        <ProjectAccordion defaultValue="step-1">
+        <ProjectAccordion defaultValue={defaultAccordionValue}>
+          {/* Step 1: Brief */}
           <ProjectPrd
             value="step-1"
             title="step 1: 수익형 콘텐츠 기획서"
             markdownHtml={renderMarkdown(projectBriefMd)}
             loading={loading.brief}
             done={done.brief}
+            onEdit={done.brief ? handleBriefEdit : undefined}
+            onDone={done.brief ? handleBriefApprove : undefined}
           />
+          {isEditingBrief && done.brief && (
+            <div className="px-4 pb-4">
+              <ProjectBriefEditor
+                projectId={projectId || ""}
+                initialContent={projectBriefMd}
+                onCancel={handleBriefCancel}
+                onSave={handleBriefSave}
+              />
+            </div>
+          )}
 
+          {/* Step 2: Script */}
           <ProjectScript
             value="step-2"
             title="step 2: 대본 작성"
             paragraphs={scriptParagraphs}
             loading={loading.script}
             done={done.script}
+            onEdit={done.script ? handleScriptEdit : undefined}
+            onDone={done.script ? handleScriptApprove : undefined}
           />
+          {isEditingScript && done.script && (
+            <div className="px-4 pb-4">
+              <ProjectScriptEditor
+                projectId={projectId || ""}
+                initialContent={scriptParagraphs}
+                onCancel={handleScriptCancel}
+                onSave={handleScriptSave}
+              />
+            </div>
+          )}
 
+          {/* Step 3: Narration */}
           <ProjectScriptAudio
             value="step-3"
             title="step 3: 나레이션 확인하기"
             segments={narrationSegments}
             loading={loading.narration}
             done={done.narration}
+            onEdit={done.narration ? handleNarrationRegenerate : undefined}
+            onDone={done.narration ? handleNarrationApprove : undefined}
           />
 
+          {/* Step 4: Images */}
           <ProjectImageSelect
             value="step-4"
             title="step 4: 생성된 이미지"
             images={
-              imageUrls && imageUrls.length > 0
-                ? imageUrls
-                : [
-                    "https://github.com/openai.png",
-                    "https://github.com/openai.png",
-                    "https://github.com/openai.png",
-                    "https://github.com/openai.png",
-                    "https://github.com/openai.png",
-                    "https://github.com/openai.png",
-                  ]
+              imageUrls && imageUrls.length > 0 ? imageUrls : MOCK_IMAGE_URLS
             }
             timelines={imageTimelines}
             selected={selectedImages}
             onToggle={toggleSelectImage}
+            onRegenerate={done.images ? handleImagesRegenerate : undefined}
+            onDone={done.images ? handleImagesApprove : undefined}
             loading={loading.images}
             done={done.images}
           />
 
+          {/* Step 5: Videos */}
           <ProjectVideoSelect
             value="step-5"
             title="step 5: 생성된 영상 확인하기"
             sources={
-              videoUrls && videoUrls.length > 0
-                ? videoUrls
-                : [
-                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-                    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-                  ]
+              videoUrls && videoUrls.length > 0 ? videoUrls : MOCK_VIDEO_URLS
             }
             timelines={videoTimelines}
             selected={selectedVideos}
             onToggle={toggleSelectVideo}
+            onRegenerate={done.videos ? handleVideosRegenerate : undefined}
+            onDone={done.videos ? handleVideosApprove : undefined}
             loading={loading.videos}
             done={done.videos}
           />
 
+          {/* Step 6: Final */}
           <ProjectFinalVideo
             value="step-6"
             title="step 6: 편집된 영상 확인 및 업로드"
-            videoSrc={
-              finalVideoUrl ||
-              "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+            videoSrc={finalVideoUrl || MOCK_VIDEO_URLS[0]}
+            headline={
+              workspaceData?.project?.title ||
+              generateMockProjectTitle(projectKeyword)
             }
-            headline={workspaceData?.project?.title || "바이럴될만한 제목"}
             description={
-              workspaceData?.project?.description || "바이럴될만한 설명들"
+              workspaceData?.project?.description ||
+              generateMockProjectDescription(projectKeyword)
             }
-            durationText="영상 길이 01:00"
+            durationText="영상 길이 00:30"
             loading={loading.final}
             done={done.final}
+            onDone={done.final ? handleDeploy : undefined}
           />
         </ProjectAccordion>
       </div>

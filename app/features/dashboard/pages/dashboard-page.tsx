@@ -99,30 +99,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
   try {
     const { client } = makeSSRClient(request);
 
-    // 현재 사용자 정보 가져오기
-    const {
-      data: { user },
-    } = await client.auth.getUser();
-
+    // 현재 사용자 정보 가져오기 (선택적 인증 - 로그인하지 않아도 대시보드 접근 가능)
     let ownerProfileId: string | undefined = undefined;
-    if (user) {
-      try {
-        const { getUserById } = await import("~/features/users/queries");
-        const profile = await getUserById(client, { id: user.id });
-        ownerProfileId = profile?.id;
-      } catch (error: any) {
-        // Rate limit 에러인 경우 재시도하지 않도록 처리
-        if (
-          error?.status === 429 ||
-          error?.code === "over_request_rate_limit"
-        ) {
-          console.error("Rate limit 도달 - 프로필 조회 건너뜀:", error);
-          // 프로필 없이 계속 진행
-        } else {
-          console.error("프로필 조회 실패:", error);
-        }
-        // 프로필이 없어도 계속 진행
+    try {
+      const { getLoggedInProfileId } = await import("~/features/users/queries");
+      ownerProfileId = await getLoggedInProfileId(client);
+    } catch (error: any) {
+      // 로그인하지 않은 경우 또는 Rate limit 에러인 경우 계속 진행
+      if (error?.status === 429 || error?.code === "over_request_rate_limit") {
+        console.error("Rate limit 도달 - 프로필 조회 건너뜀:", error);
+      } else if (error && typeof error === "object" && "status" in error) {
+        // redirect 에러는 무시 (로그인하지 않은 경우)
+      } else {
+        console.error("프로필 조회 실패:", error);
       }
+      // 프로필이 없어도 계속 진행 (비로그인 사용자도 대시보드 접근 가능)
     }
 
     // 빠른 데이터는 즉시 로드 (View 사용으로 빠름)

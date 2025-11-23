@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "~/common/components/ui/card";
 import { Button } from "~/common/components/ui/button";
+import { Badge } from "~/common/components/ui/badge";
 import { Volume2, Plus } from "lucide-react";
 
 export type ProjectCardProps = {
@@ -25,7 +26,32 @@ export type ProjectCardProps = {
   className?: string;
   isCreate?: boolean;
   ctaText?: string;
+  status?: string;
 };
+
+function getStatusBadge(status: string) {
+  const statusConfig: Record<
+    string,
+    { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+  > = {
+    draft: { label: "초안", variant: "outline" },
+    generating: { label: "생성 중", variant: "secondary" },
+    active: { label: "진행 중", variant: "default" },
+    completed: { label: "완료", variant: "default" },
+    archived: { label: "아카이브", variant: "outline" },
+  };
+
+  const config = statusConfig[status] || { label: status, variant: "outline" as const };
+
+  return (
+    <Badge
+      variant={config.variant}
+      className="text-xs font-medium capitalize bg-background/90 backdrop-blur-sm border-border/50"
+    >
+      {config.label}
+    </Badge>
+  );
+}
 
 function getYouTubeEmbedSrc(url: string): string | null {
   try {
@@ -77,7 +103,7 @@ function getEmbedSrcFromAny(url: string): string | null {
 }
 
 export default function ProjectCard(props: ProjectCardProps) {
-  const { id, to, title, description, likes, ctr, budget, tiktokUrl, videoUrl, thumbnail, className, isCreate, ctaText } = props;
+  const { id, to, title, description, likes, ctr, budget, tiktokUrl, videoUrl, thumbnail, className, isCreate, ctaText, status } = props;
 
   return (
     <Card className={"p-0 overflow-hidden flex flex-col " + (className ?? "")}> 
@@ -136,8 +162,14 @@ export default function ProjectCard(props: ProjectCardProps) {
               <div className="h-full w-full bg-linear-to-b from-muted/40 to-muted-foreground/10" />
             ) : null}
 
-            {/* 우상단 볼륨 버튼 (장식용) */}
-            {!isCreate && (
+            {/* 우상단 상태 배지 */}
+            {!isCreate && status && (
+              <div className="absolute right-3 top-3 z-20">
+                {getStatusBadge(status)}
+              </div>
+            )}
+            {/* 우상단 볼륨 버튼 (장식용) - 상태 배지가 없을 때만 표시 */}
+            {!isCreate && !status && (
             <Button
               variant="secondary"
               size="icon"
@@ -157,7 +189,14 @@ export default function ProjectCard(props: ProjectCardProps) {
       {/* 텍스트 영역 */}
       <CardHeader className="pt-4 flex-shrink-0 min-h-[80px]">
         <Link prefetch="viewport" to={to} className="block">
-          <CardTitle className="text-base leading-tight line-clamp-2">{title}</CardTitle>
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <CardTitle className="text-base leading-tight line-clamp-2 flex-1">{title}</CardTitle>
+            {!isCreate && status && (
+              <div className="flex-shrink-0 mt-0.5">
+                {getStatusBadge(status)}
+              </div>
+            )}
+          </div>
           {description ? <CardDescription>{description}</CardDescription> : null}
         </Link>
         <CardAction />

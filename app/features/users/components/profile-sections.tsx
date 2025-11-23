@@ -70,9 +70,6 @@ export function ProfileSummaryCard({
           </Avatar>
           <div className="space-y-1">
             <p className="text-lg font-semibold text-foreground">{name}</p>
-            <p className="text-sm text-muted-foreground">
-              {role} · {company}
-            </p>
           </div>
         </div>
 
@@ -102,9 +99,11 @@ export function ProfileSummaryCard({
         </dl>
       </CardContent>
       <CardFooter className="flex flex-wrap gap-3">
-        <Button className="gap-2" size="sm">
-          <Pencil className="size-4" aria-hidden="true" />
-          {editLabel}
+        <Button className="gap-2" size="sm" asChild>
+          <Link to="/my/dashboard/settings/profile/edit">
+            <Pencil className="size-4" aria-hidden="true" />
+            {editLabel}
+          </Link>
         </Button>
         <Button size="sm" variant="outline">
           {resetPasswordLabel}

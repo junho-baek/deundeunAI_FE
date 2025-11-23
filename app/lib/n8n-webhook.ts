@@ -86,11 +86,13 @@ export async function triggerProjectStepStartWebhook(stepData: {
   step_key: string;
   step_status: string;
   started_at?: string;
+  metadata?: Record<string, unknown>;
 }): Promise<void> {
   await triggerN8nWebhook("project_step_started", {
     project_id: stepData.project_id,
     step_key: stepData.step_key,
     step_status: stepData.step_status,
     started_at: stepData.started_at || new Date().toISOString(),
+    ...(stepData.metadata && { metadata: stepData.metadata }),
   });
 }

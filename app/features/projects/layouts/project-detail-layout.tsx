@@ -25,6 +25,8 @@ import {
 import {
   getProjectByProjectId,
   getProjectSteps,
+  getProjectMessages,
+  type ProjectMessage,
 } from "~/features/projects/queries";
 import { getProfileSlug } from "~/features/users/queries";
 import { makeSSRClient } from "~/lib/supa-client";
@@ -37,6 +39,14 @@ type Message = {
   content: string;
   attachments?: MessageAttachment[];
   aspectRatio?: ChatFormData["aspectRatio"];
+  stepKey?:
+    | "brief"
+    | "script"
+    | "narration"
+    | "images"
+    | "videos"
+    | "final"
+    | "distribution";
 };
 
 type LoadingState = {
@@ -69,6 +79,7 @@ export type ProjectDetailContextValue = {
   narrationSegments: NarrationSegment[];
   actionData?: {
     error?: string;
+    fieldErrors?: Record<string, string[] | undefined>;
     creditBalance?: number;
     requiredCredits?: number;
     rechargeUrl?: string;
@@ -84,6 +95,7 @@ type LoaderData = {
   project: Awaited<ReturnType<typeof getProjectByProjectId>> | null;
   projectSteps: Awaited<ReturnType<typeof getProjectSteps>>;
   ownerSlug: string | null;
+  savedMessages: ProjectMessage[]; // 저장된 채팅 내역
 };
 
 function extractInitialChatPayload(url: URL): ChatFormData | null {
@@ -133,10 +145,15 @@ export const loader = async ({
   let project = null;
   let projectSteps: Awaited<ReturnType<typeof getProjectSteps>> = [];
   let ownerSlug: string | null = null;
+  let savedMessages: ProjectMessage[] = [];
+
   if (projectId && projectId !== "create") {
     try {
       project = await getProjectByProjectId(client, projectId);
       projectSteps = await getProjectSteps(client, projectId);
+
+      // 저장된 채팅 내역 복원
+      savedMessages = await getProjectMessages(client, projectId);
 
       // owner slug 조회 (공개 프로필 링크용)
       if (project?.owner_profile_id) {
@@ -153,6 +170,7 @@ export const loader = async ({
     project,
     projectSteps,
     ownerSlug,
+    savedMessages, // 저장된 채팅 내역 추가
   };
 };
 
@@ -169,6 +187,16 @@ function createConversationEntries({
     size: file.size,
   }));
 
+  // 더 자연스러운 에이전트 응답 생성
+  const agentResponses = [
+    `네, "${trimmed}" 주제로 ${aspectRatio} 비율의 수익형 쇼츠를 만들어드릴게요! 몇 가지 정보를 더 알려주시면 더 정확한 기획서를 작성할 수 있어요.`,
+    `좋은 주제네요! "${trimmed}"를 바이럴 콘텐츠로 만들기 위해 몇 가지 질문드릴게요.`,
+    `알겠습니다! "${trimmed}" 주제로 ${aspectRatio} 비율의 쇼츠를 제작해드릴게요. 아래 설문을 작성해주시면 맞춤형 기획서를 만들어드려요.`,
+  ];
+
+  const randomResponse =
+    agentResponses[Math.floor(Math.random() * agentResponses.length)];
+
   return [
     {
       id: crypto.randomUUID(),
@@ -182,8 +210,8 @@ function createConversationEntries({
       role: "agent",
       content:
         attachmentSummaries.length > 0
-          ? `업로드해 주신 이미지 ${attachmentSummaries.length}개와 ${aspectRatio} 비율을 기반으로 초안을 준비할게요. 제품명과 타깃을 알려주세요.`
-          : `${aspectRatio} 비율로 초안 설문을 준비 중입니다. 제품명과 타깃을 알려주세요.`,
+          ? `업로드해 주신 이미지 ${attachmentSummaries.length}개를 확인했어요! ${aspectRatio} 비율로 초안을 준비할게요. 아래 설문을 작성해주시면 더 정확한 콘텐츠를 만들 수 있어요.`
+          : randomResponse,
     },
   ];
 }
@@ -195,6 +223,7 @@ function useProjectDetailState(
   const loaderDataFromHook = useLoaderData<LoaderData | null>();
   const loaderData = loaderDataProp ?? loaderDataFromHook;
   const initialChatPayload = loaderData?.initialChatPayload ?? null;
+  const savedMessages = loaderData?.savedMessages ?? [];
 
   // 프로젝트 단계 상태 폴링 및 동기화
   const { getStepLoading, getStepDone, stepStatusMap } = useProjectStepStatus(
@@ -205,10 +234,34 @@ function useProjectDetailState(
     }
   );
 
+  // 저장된 메시지를 Message 형식으로 변환
+  const restoredMessages = React.useMemo(() => {
+    if (savedMessages.length > 0) {
+      return savedMessages.map(
+        (msg: ProjectMessage): Message => ({
+          id: msg.id,
+          role: msg.role as "user" | "agent",
+          content: msg.content,
+          attachments: msg.attachments || [],
+          aspectRatio: msg.aspectRatio as
+            | ChatFormData["aspectRatio"]
+            | undefined,
+          stepKey: msg.stepKey as Message["stepKey"], // stepKey 타입 캐스팅
+        })
+      );
+    }
+    return [];
+  }, [savedMessages]);
+
+  // 저장된 메시지가 있으면 우선 사용, 없으면 초기 채팅 페이로드 사용
   const initialMessages = React.useMemo(
     () =>
-      initialChatPayload ? createConversationEntries(initialChatPayload) : [],
-    [initialChatPayload]
+      restoredMessages.length > 0
+        ? restoredMessages
+        : initialChatPayload
+          ? createConversationEntries(initialChatPayload)
+          : [],
+    [restoredMessages, initialChatPayload]
   );
 
   // useState의 lazy initialization을 사용하여 초기값을 함수로 전달
@@ -241,13 +294,26 @@ function useProjectDetailState(
     ],
     []
   );
-  const narrationSegments = React.useMemo(
-    () => [
-      { id: 1, label: "00:00–00:10", src: "/audio/seg-1.mp3" },
-      { id: 2, label: "00:11–00:20", src: "/audio/seg-2.mp3" },
-    ],
-    []
-  );
+  const narrationSegments = React.useMemo(() => {
+    // 실감나는 오디오 세그먼트 사용
+    return [
+      {
+        id: 1,
+        label: "00:00–00:10",
+        src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+      },
+      {
+        id: 2,
+        label: "00:11–00:20",
+        src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+      },
+      {
+        id: 3,
+        label: "00:21–00:30",
+        src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+      },
+    ];
+  }, []);
   // DB 상태와 동기화된 loading/done 상태
   const dbLoading = React.useMemo<LoadingState>(
     () => ({
@@ -429,7 +495,15 @@ function useProjectDetailState(
     [appendConversation, projectId, fetcher]
   );
 
-  const actionData = fetcher.data as { error?: string } | undefined;
+  const actionData = fetcher.data as
+    | {
+        error?: string;
+        fieldErrors?: Record<string, string[] | undefined>;
+        creditBalance?: number;
+        requiredCredits?: number;
+        rechargeUrl?: string;
+      }
+    | undefined;
   const isSubmitting = fetcher.state === "submitting";
 
   return React.useMemo(
@@ -544,6 +618,22 @@ export default function ProjectDetailLayout({
               </div>
               <div className="bg-background/70 backdrop-blur">
                 <Separator className="my-4" />
+                {actionData?.fieldErrors && (
+                  <Alert
+                    variant="destructive"
+                    className="mb-4 bg-destructive/10"
+                  >
+                    <AlertTitle>입력 오류</AlertTitle>
+                    <AlertDescription className="flex flex-col gap-1">
+                      {Object.entries(actionData.fieldErrors).map(
+                        ([field, errors]) =>
+                          errors?.map((error, index) => (
+                            <span key={`${field}-${index}`}>{error}</span>
+                          ))
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 {actionData?.error && (
                   <Alert
                     variant="destructive"
@@ -580,12 +670,42 @@ export default function ProjectDetailLayout({
 }
 
 function AgentConversationMock() {
-  const { messages } = useProjectDetail();
+  const { messages, loading, done, projectId } = useProjectDetail();
+  const formSubmitFetcher = useFetcher();
+  const formActionData = formSubmitFetcher.data as
+    | { success?: boolean; ok?: boolean; error?: string }
+    | undefined;
   const latestUserMessage = React.useMemo(
     () => [...messages].reverse().find((message) => message.role === "user"),
     [messages]
   );
   const showAttachments = (latestUserMessage?.attachments?.length ?? 0) > 0;
+
+  // 프로젝트가 생성되었는지 확인 (메시지가 있고 첫 번째 사용자 메시지가 있음)
+  const hasProjectStarted =
+    messages.length > 0 && messages.some((m) => m.role === "user");
+
+  // 폼 제출 핸들러 (ChatInitForm용)
+  const handleFormSubmit = React.useCallback(
+    async (values: Record<string, string[]>) => {
+      if (!projectId || projectId === "create") return;
+
+      // FormData 생성
+      const formData = new FormData();
+      for (const [key, valueArray] of Object.entries(values)) {
+        for (const value of valueArray) {
+          formData.append(`form_${key}`, value);
+        }
+      }
+
+      // 폼 제출 action 호출
+      formSubmitFetcher.submit(formData, {
+        method: "post",
+        action: `/my/dashboard/project/${projectId}/form/submit`,
+      });
+    },
+    [projectId, formSubmitFetcher]
+  );
 
   const sections: SurveySection[] = React.useMemo(
     () => [
@@ -665,9 +785,40 @@ function AgentConversationMock() {
 
   const hasMessages = messages.length > 0;
 
+  // 첫 번째 사용자 메시지가 있고, 기획서가 시작되지 않았으면 폼 생성 중 메시지 표시
+  // (사용자 메시지가 있고, 기획서가 pending 상태일 때)
+  const showFormGenerating =
+    hasProjectStarted &&
+    !done.brief &&
+    !loading.brief &&
+    messages.some((m) => m.role === "user");
+  // 기획서 작성 중
+  const showBriefGenerating = loading.brief;
+  // 기획서 완료
+  const showBriefDone = done.brief && !done.script;
+  // 대본 작성 중
+  const showScriptGenerating = loading.script;
+  // 대본 완료
+  const showScriptDone = done.script && !done.narration;
+  // 나레이션 생성 중
+  const showNarrationGenerating = loading.narration;
+  // 나레이션 완료
+  const showNarrationDone = done.narration && !done.images;
+  // 이미지 생성 중
+  const showImagesGenerating = loading.images;
+  // 이미지 완료
+  const showImagesDone = done.images && !done.videos;
+  // 비디오 생성 중
+  const showVideosGenerating = loading.videos;
+  // 비디오 완료
+  const showVideosDone = done.videos && !done.final;
+  // 최종 편집 중
+  const showFinalGenerating = loading.final;
+
   return (
     <div className="flex flex-col gap-2">
-      {hasMessages ? (
+      {/* 저장된 메시지 표시 */}
+      {hasMessages &&
         messages.map((message) => (
           <ChatBox
             key={message.id}
@@ -696,75 +847,189 @@ function AgentConversationMock() {
               </div>
             ) : null}
           </ChatBox>
-        ))
-      ) : (
-        <ChatBox role="user" message="keyword" avatarSrc="/avatar.png" />
+        ))}
+
+      {/* 폼 생성 중 (첫 사용자 메시지 후) */}
+      {showFormGenerating && (
+        <ChatBox
+          role="agent"
+          message="요청해주신 쿼리로 폼 생성 중입니다..."
+          avatarSrc="/agent.png"
+          showThinking
+          stackBelowAvatar
+          childrenFullWidth
+        >
+          <div className="mt-3">
+            <ChatInitForm
+              sections={sections}
+              onSubmit={handleFormSubmit}
+              actionData={formActionData}
+            />
+          </div>
+        </ChatBox>
       )}
 
-      <ChatBox
-        role="agent"
-        message="ok let me see.."
-        avatarSrc="/agent.png"
-        showThinking
-        stackBelowAvatar
-        childrenFullWidth
-      >
-        <div className="mt-3">
-          <ChatInitForm sections={sections} />
-        </div>
-      </ChatBox>
-
-      <ChatBox
-        role="agent"
-        avatarSrc="/agent.png"
-        stackBelowAvatar
-        childrenFullWidth
-      >
-        <ChatConfirmCard
-          message="작업공간에서 작업물을 확인하고 수정 혹은 다음 버튼을 눌러주세요."
-          mode="text"
-          showSecondary
-          attention="shake"
-          secondaryActionLabel="다음"
+      {/* 기획서 작성 중 */}
+      {showBriefGenerating && (
+        <ChatBox
+          role="agent"
+          message="기획서 작성 중입니다..."
+          avatarSrc="/agent.png"
+          showThinking
+          stackBelowAvatar
+          childrenFullWidth
         />
-      </ChatBox>
+      )}
 
-      <ChatBox
-        role="agent"
-        avatarSrc="/agent.png"
-        stackBelowAvatar
-        childrenFullWidth
-      >
-        <ChatConfirmCard
-          message="작업공간에서 작업물을 확인하고 수정 혹은 다음 버튼을 눌러주세요."
-          mode="text"
-          showSecondary
-          secondaryActionLabel="다음"
+      {/* 기획서 완료 */}
+      {showBriefDone && (
+        <ChatBox
+          role="agent"
+          avatarSrc="/agent.png"
+          stackBelowAvatar
+          childrenFullWidth
+        >
+          <ChatConfirmCard
+            message="기획서가 완성되었어요! 작업공간에서 확인하고 수정하거나 '이대로 제출' 버튼을 눌러주세요."
+            mode="text"
+            showSecondary
+            attention={false}
+            secondaryActionLabel="확인했어요"
+          />
+        </ChatBox>
+      )}
+
+      {/* 대본 작성 중 */}
+      {showScriptGenerating && (
+        <ChatBox
+          role="agent"
+          message="대본 작성 중입니다..."
+          avatarSrc="/agent.png"
+          showThinking
+          stackBelowAvatar
+          childrenFullWidth
         />
-      </ChatBox>
+      )}
 
-      <ChatBox
-        role="agent"
-        avatarSrc="/agent.png"
-        stackBelowAvatar
-        childrenFullWidth
-      >
-        <ChatConfirmCard
-          message="작업공간에서 작업물을 선택하고 수정 혹은 다음 버튼을 눌러주세요."
-          mode="media"
-          showSecondary
-          attention="bounce"
-          secondaryActionLabel="다음"
+      {/* 대본 완료 */}
+      {showScriptDone && (
+        <ChatBox
+          role="agent"
+          avatarSrc="/agent.png"
+          stackBelowAvatar
+          childrenFullWidth
+        >
+          <ChatConfirmCard
+            message="대본 작성이 완료되었어요! 작업공간에서 각 문단을 확인하고 수정하거나 '이대로 제출' 버튼을 눌러주세요."
+            mode="text"
+            showSecondary
+            attention={false}
+            secondaryActionLabel="확인했어요"
+          />
+        </ChatBox>
+      )}
+
+      {/* 나레이션 생성 중 */}
+      {showNarrationGenerating && (
+        <ChatBox
+          role="agent"
+          message="나레이션 생성 중입니다..."
+          avatarSrc="/agent.png"
+          showThinking
+          stackBelowAvatar
+          childrenFullWidth
         />
-      </ChatBox>
+      )}
 
-      <ChatBox
-        role="agent"
-        avatarSrc="/agent.png"
-        showThinking
-        stackBelowAvatar
-        childrenFullWidth
-      />
+      {/* 나레이션 완료 */}
+      {showNarrationDone && (
+        <ChatBox
+          role="agent"
+          avatarSrc="/agent.png"
+          stackBelowAvatar
+          childrenFullWidth
+        >
+          <ChatConfirmCard
+            message="나레이션이 완료되었어요! 작업공간에서 확인하고 수정하거나 '이대로 제출' 버튼을 눌러주세요."
+            mode="text"
+            showSecondary
+            attention={false}
+            secondaryActionLabel="확인했어요"
+          />
+        </ChatBox>
+      )}
+
+      {/* 이미지 생성 중 */}
+      {showImagesGenerating && (
+        <ChatBox
+          role="agent"
+          message="이미지 생성 중입니다..."
+          avatarSrc="/agent.png"
+          showThinking
+          stackBelowAvatar
+          childrenFullWidth
+        />
+      )}
+
+      {/* 이미지 완료 */}
+      {showImagesDone && (
+        <ChatBox
+          role="agent"
+          avatarSrc="/agent.png"
+          stackBelowAvatar
+          childrenFullWidth
+        >
+          <ChatConfirmCard
+            message="이미지 생성이 완료되었어요! 작업공간에서 원하는 이미지를 선택하고 '완료' 버튼을 눌러주세요."
+            mode="media"
+            showSecondary
+            attention={false}
+            secondaryActionLabel="확인했어요"
+          />
+        </ChatBox>
+      )}
+
+      {/* 비디오 생성 중 */}
+      {showVideosGenerating && (
+        <ChatBox
+          role="agent"
+          message="비디오 생성 중입니다..."
+          avatarSrc="/agent.png"
+          showThinking
+          stackBelowAvatar
+          childrenFullWidth
+        />
+      )}
+
+      {/* 비디오 완료 */}
+      {showVideosDone && (
+        <ChatBox
+          role="agent"
+          avatarSrc="/agent.png"
+          stackBelowAvatar
+          childrenFullWidth
+        >
+          <ChatConfirmCard
+            message="비디오 생성이 완료되었어요! 작업공간에서 원하는 비디오를 선택하고 '완료' 버튼을 눌러주세요."
+            mode="media"
+            showSecondary
+            attention={false}
+            secondaryActionLabel="확인했어요"
+          />
+        </ChatBox>
+      )}
+
+      {/* 최종 편집 중 */}
+      {showFinalGenerating && (
+        <ChatBox
+          role="agent"
+          message="최종 영상 편집 중이에요..."
+          avatarSrc="/agent.png"
+          showThinking
+          stackBelowAvatar
+          childrenFullWidth
+        />
+      )}
     </div>
   );
 }

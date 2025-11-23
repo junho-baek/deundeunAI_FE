@@ -6,11 +6,12 @@
  */
 
 import { type ActionFunctionArgs, data } from "react-router";
-import { updateProjectStep, getProjectByProjectId } from "../queries";
+import { getProjectByProjectId } from "../queries";
+import { updateProjectStep } from "../mutations";
 import { makeSSRClient } from "~/lib/supa-client";
 import { triggerProjectStepStartWebhook } from "~/lib/n8n-webhook";
 import { calculateStepCredits } from "~/features/users/services/credit-calculator";
-import { deductCreditsRPC, getCreditBalance } from "~/features/users/queries";
+import { deductCreditsRPC, getCreditBalance, getLoggedInUserId } from "~/features/users/queries";
 
 export async function updateStepStatusAction({ request, params }: ActionFunctionArgs) {
   if (request.method !== "POST") {
@@ -18,6 +19,18 @@ export async function updateStepStatusAction({ request, params }: ActionFunction
   }
 
   const { client } = makeSSRClient(request);
+  
+  // 인증 체크 (로그인하지 않은 경우 자동으로 /auth/login으로 리다이렉트)
+  try {
+    await getLoggedInUserId(client);
+  } catch (error) {
+    // redirect 에러는 그대로 전파
+    if (error && typeof error === "object" && "status" in error) {
+      throw error;
+    }
+    return data({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
   const projectId = params.projectId;
   if (!projectId || projectId === "create") {
     return data({ error: "Invalid project ID" }, { status: 400 });
@@ -63,6 +76,27 @@ export async function updateStepStatusAction({ request, params }: ActionFunction
         metadata = JSON.parse(metadataStr);
       } catch (e) {
         console.warn("Failed to parse metadata:", e);
+      }
+    }
+
+    // 중복 처리 방지: 현재 단계 상태 확인
+    const { getProjectSteps } = await import("../queries");
+    const currentSteps = await getProjectSteps(client, projectId);
+    const currentStep = currentSteps.find((s) => s.key === stepKey);
+    
+    // 이미 처리 중이거나 완료된 경우 중복 처리 방지
+    if (currentStep) {
+      if (status === "in_progress" && currentStep.status === "in_progress") {
+        return data(
+          { error: "이미 처리 중인 단계입니다." },
+          { status: 400 }
+        );
+      }
+      if (status === "completed" && currentStep.status === "completed") {
+        return data(
+          { error: "이미 완료된 단계입니다." },
+          { status: 400 }
+        );
       }
     }
 

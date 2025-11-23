@@ -1,4 +1,4 @@
-import { Link, Form, type MetaFunction, type ActionFunctionArgs, redirect, useNavigation } from "react-router";
+import { Link, Form, type MetaFunction, type ActionFunctionArgs, redirect, useNavigation, useSearchParams } from "react-router";
 import { z } from "zod";
 
 import FormButton from "~/common/components/form-button";
@@ -83,8 +83,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function LoginPage({ actionData }: Route.ComponentProps) {
   const navigation = useNavigation();
+  const [searchParams] = useSearchParams();
   const isSubmitting =
     navigation.state === "submitting" || navigation.state === "loading";
+  
+  // URL 쿼리 파라미터에서 에러 메시지 가져오기 (소셜 로그인 에러 등)
+  const urlError = searchParams.get("error");
 
   return (
     <div className="flex flex-col items-center justify-center gap-4">
@@ -96,6 +100,19 @@ export default function LoginPage({ actionData }: Route.ComponentProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
+          {/* 소셜 로그인 에러 표시 */}
+          {urlError && (
+            <Alert variant="destructive" className="bg-destructive/10">
+              <AlertTitle>로그인 실패</AlertTitle>
+              <AlertDescription>
+                {urlError === "oauth_failed" && "소셜 로그인에 실패했습니다. 다시 시도해주세요."}
+                {urlError === "no_code" && "인증 코드를 받지 못했습니다. 다시 시도해주세요."}
+                {urlError === "session_exchange_failed" && "세션 생성에 실패했습니다. 다시 시도해주세요."}
+                {urlError === "no_oauth_url" && "OAuth URL을 생성하지 못했습니다. 설정을 확인해주세요."}
+                {!["oauth_failed", "no_code", "session_exchange_failed", "no_oauth_url"].includes(urlError) && decodeURIComponent(urlError)}
+              </AlertDescription>
+            </Alert>
+          )}
           <Form className="flex w-full flex-col gap-5" method="post">
             <div className="flex flex-col items-start space-y-2">
               <Label

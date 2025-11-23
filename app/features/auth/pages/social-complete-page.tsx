@@ -7,9 +7,9 @@ export const meta: Route.MetaFunction = () => {
   return [{ title: "소셜 로그인 완료 - 든든AI" }];
 };
 
-// 지원하는 소셜 프로바이더 (현재는 Google만)
+// 지원하는 소셜 프로바이더
 const paramsSchema = z.object({
-  provider: z.enum(["google"]),
+  provider: z.enum(["google", "kakao", "github"]),
 });
 
 export const loader = async ({ params, request }: Route.LoaderArgs) => {
@@ -43,18 +43,37 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   const { client, headers } = makeSSRClient(request);
 
   // 4. 인증 코드를 세션으로 교환
-  const { error: exchangeError } = await client.auth.exchangeCodeForSession(
-    code
-  );
+  try {
+    const { data, error: exchangeError } =
+      await client.auth.exchangeCodeForSession(code);
 
-  if (exchangeError) {
-    console.error("세션 교환 실패:", exchangeError);
-    // 세션 교환 실패 시 로그인 페이지로 리다이렉트
-    return redirect(`/auth/login?error=${encodeURIComponent(exchangeError.message)}`);
+    if (exchangeError) {
+      console.error(`[${params.provider}] 세션 교환 실패:`, exchangeError);
+      console.error("에러 상세:", {
+        message: exchangeError.message,
+        status: exchangeError.status,
+        provider: params.provider,
+        code: code ? "있음" : "없음",
+      });
+      // 세션 교환 실패 시 로그인 페이지로 리다이렉트
+      return redirect(
+        `/auth/login?error=${encodeURIComponent(exchangeError.message || "session_exchange_failed")}`
+      );
+    }
+
+    console.log(`[${params.provider}] 세션 교환 성공:`, {
+      user: data?.user?.id,
+      session: data?.session ? "생성됨" : "없음",
+    });
+
+    // 5. 성공 시 홈으로 리다이렉트 (세션 쿠키 포함)
+    return redirect("/", { headers });
+  } catch (err) {
+    console.error(`[${params.provider}] 세션 교환 중 예외 발생:`, err);
+    const errorMessage =
+      err instanceof Error ? err.message : "세션 교환 중 오류가 발생했습니다.";
+    return redirect(`/auth/login?error=${encodeURIComponent(errorMessage)}`);
   }
-
-  // 5. 성공 시 홈으로 리다이렉트 (세션 쿠키 포함)
-  return redirect("/", { headers });
 };
 
 // 이 페이지는 loader에서 리다이렉트되므로 실제로 렌더링되지 않습니다

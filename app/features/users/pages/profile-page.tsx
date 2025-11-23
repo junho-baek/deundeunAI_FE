@@ -84,41 +84,46 @@ export const meta: MetaFunction = () => {
 
 export async function loader({ request }: { request: Request }) {
   try {
-    const data = await getProfileSettingsData();
+    const { client } = makeSSRClient(request);
+
+    // 현재 로그인한 사용자의 프로필 ID 조회
+    let profileId: string | undefined = undefined;
+    try {
+      const { getLoggedInProfileId } = await import("~/features/users/queries");
+      profileId = await getLoggedInProfileId(client);
+    } catch (error: any) {
+      // 로그인하지 않은 경우 또는 Rate limit 에러인 경우 계속 진행
+      if (error?.status === 429 || error?.code === "over_request_rate_limit") {
+        console.error("Rate limit 도달 - 프로필 조회 건너뜀:", error);
+      } else if (error && typeof error === "object" && "status" in error) {
+        // redirect 에러는 무시 (로그인하지 않은 경우)
+      } else {
+        console.error("프로필 조회 실패:", error);
+      }
+    }
+
+    // 현재 로그인한 사용자의 프로필 데이터 조회
+    // profileId가 없으면 기본값 사용 (비로그인 사용자)
+    const data = profileId
+      ? await getProfileSettingsData(profileId)
+      : FALLBACK_PROFILE_DATA;
 
     // 크레딧 잔액 조회
     let creditBalance = 0;
-    try {
-      const { client } = makeSSRClient(request);
-      const {
-        data: { user },
-      } = await client.auth.getUser();
-
-      if (user) {
-        try {
-          const profile = await getUserById(client, { id: user.id });
-          if (profile?.id) {
-            const balance = await getCreditBalance(client, profile.id);
-            creditBalance = balance ?? 0;
-          }
-        } catch (error: any) {
-          // Rate limit 에러인 경우 재시도하지 않도록 처리
-          if (
-            error?.status === 429 ||
-            error?.code === "over_request_rate_limit"
-          ) {
-            console.error("Rate limit 도달 - 프로필 조회 건너뜀:", error);
-          } else {
-            console.error("프로필 조회 실패:", error);
-          }
+    if (profileId) {
+      try {
+        const balance = await getCreditBalance(client, profileId);
+        creditBalance = balance ?? 0;
+      } catch (error: any) {
+        // Rate limit 에러인 경우 재시도하지 않도록 처리
+        if (
+          error?.status === 429 ||
+          error?.code === "over_request_rate_limit"
+        ) {
+          console.error("Rate limit 도달 - 크레딧 잔액 조회 건너뜀:", error);
+        } else {
+          console.error("크레딧 잔액 조회 실패:", error);
         }
-      }
-    } catch (error: any) {
-      // Rate limit 에러인 경우 재시도하지 않도록 처리
-      if (error?.status === 429 || error?.code === "over_request_rate_limit") {
-        console.error("Rate limit 도달 - 크레딧 잔액 조회 건너뜀:", error);
-      } else {
-        console.error("크레딧 잔액 조회 실패:", error);
       }
     }
 

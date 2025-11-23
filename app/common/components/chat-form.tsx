@@ -11,6 +11,7 @@ export type ChatFormData = {
   images: File[];
   aspectRatio: AspectRatioOption;
   projectId?: string; // 생성된 프로젝트 UUID
+  formData?: Record<string, string[]>; // 폼 응답 데이터 (ChatInitForm용)
 };
 
 export type ChatFormProps = {
@@ -18,6 +19,11 @@ export type ChatFormProps = {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  /**
+   * 제출 성공 후 폼을 리셋할지 여부
+   * @default true
+   */
+  resetOnSubmit?: boolean;
 };
 
 export default function ChatForm({
@@ -25,12 +31,14 @@ export default function ChatForm({
   disabled = false,
   placeholder,
   className,
+  resetOnSubmit = true,
 }: ChatFormProps) {
   const [value, setValue] = React.useState("");
   const [images, setImages] = React.useState<File[]>([]);
   const [aspectRatio, setAspectRatio] =
     React.useState<AspectRatioOption>("9:16");
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const formRef = React.useRef<HTMLFormElement>(null);
   const isComposingRef = React.useRef(false);
 
   const submitCurrent = React.useCallback(async () => {
@@ -49,9 +57,14 @@ export default function ChatForm({
     };
 
     await onSubmit(payload);
-    setValue("");
-    setImages([]);
-  }, [value, images, aspectRatio, onSubmit]);
+    
+    // 제출 성공 후 폼 리셋
+    if (resetOnSubmit) {
+      setValue("");
+      setImages([]);
+      formRef.current?.reset();
+    }
+  }, [value, images, aspectRatio, onSubmit, resetOnSubmit]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -101,6 +114,7 @@ export default function ChatForm({
 
   return (
     <form
+      ref={formRef}
       className={"w-full " + (className ?? "")}
       onSubmit={handleSubmit}
     >

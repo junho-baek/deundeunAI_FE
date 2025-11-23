@@ -351,6 +351,14 @@ export const projectMessages = pgTable(
     parentMessageId: uuid("parent_message_id"),
     role: projectMessageRoleEnum("role").notNull(),
     content: text("content").notNull(),
+    // 채팅 관련 필드 추가 (n8n과 공유)
+    attachments: jsonb("attachments")
+      .$type<Array<{ name: string; size?: number; url?: string }>>()
+      .default(sql`'[]'::jsonb`)
+      .notNull(),
+    aspectRatio: text("aspect_ratio"), // "9:16", "16:9", "1:1"
+    stepKey: projectStepKeyEnum("step_key"), // 어떤 스텝에서 생성된 메시지인지
+    // n8n에서 사용할 수 있는 추가 메타데이터
     payload: jsonb("payload")
       .$type<Record<string, unknown>>()
       .default(sql`'{}'::jsonb`)

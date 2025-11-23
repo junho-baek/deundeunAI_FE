@@ -6,6 +6,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "~/lib/supa-client";
+import { redirect } from "react-router";
 
 /**
  * 프로필 정보 조회
@@ -79,12 +80,14 @@ export const getUserById = async (
 ) => {
   const { data, error } = await client
     .from("profiles")
-    .select(`
+    .select(
+      `
       id,
       name,
       slug,
       avatar_url
-    `)
+    `
+    )
     .eq("auth_user_id", id)
     .single();
 
@@ -100,13 +103,47 @@ export const getUserById = async (
   return data;
 };
 
+/**
+ * 로그인한 사용자 ID 조회 (인증 체크 포함)
+ * @param client - Supabase 클라이언트
+ * @returns 로그인한 사용자 ID (auth.users.id)
+ * @throws 로그인하지 않은 경우 /auth/login으로 리다이렉트
+ */
+export const getLoggedInUserId = async (
+  client: SupabaseClient<Database>
+): Promise<string> => {
+  const { data, error } = await client.auth.getUser();
+  if (error || data.user === null) {
+    throw redirect("/auth/login");
+  }
+  return data.user.id;
+};
+
+/**
+ * 로그인한 사용자의 프로필 ID 조회 (인증 체크 포함)
+ * @param client - Supabase 클라이언트
+ * @returns 프로필 ID (profiles.id)
+ * @throws 로그인하지 않았거나 프로필이 없는 경우 에러
+ */
+export const getLoggedInProfileId = async (
+  client: SupabaseClient<Database>
+): Promise<string> => {
+  const userId = await getLoggedInUserId(client);
+  const profile = await getUserById(client, { id: userId });
+  if (!profile?.id) {
+    throw new Error("프로필을 찾을 수 없습니다.");
+  }
+  return profile.id;
+};
+
 export async function getUserProfile(
   client: SupabaseClient<Database>,
   slug: string
 ) {
   const { data, error } = await client
     .from("profiles")
-    .select(`
+    .select(
+      `
       id,
       slug,
       name,
@@ -120,7 +157,8 @@ export async function getUserProfile(
       created_at,
       updated_at,
       project_count
-    `)
+    `
+    )
     .eq("slug", slug)
     .single();
 
@@ -172,10 +210,14 @@ export async function getUserProjects(
 
 /**
  * 프로필 활동 메트릭 조회
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @returns 활동 메트릭 배열
  */
-export async function getProfileActivityMetrics(profileId: string) {
+export async function getProfileActivityMetrics(
+  client: SupabaseClient<Database>,
+  profileId: string
+) {
   const { data, error } = await client
     .from("profile_activity_metrics")
     .select("*")
@@ -193,10 +235,14 @@ export async function getProfileActivityMetrics(profileId: string) {
 
 /**
  * 프로필 워크스페이스 설정 조회
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @returns 워크스페이스 설정 배열
  */
-export async function getProfileWorkspacePreferences(profileId: string) {
+export async function getProfileWorkspacePreferences(
+  client: SupabaseClient<Database>,
+  profileId: string
+) {
   const { data, error } = await client
     .from("profile_workspace_preferences")
     .select("*")
@@ -214,10 +260,16 @@ export async function getProfileWorkspacePreferences(profileId: string) {
 
 /**
  * 프로필의 프로젝트 목록 조회 (최근 4개)
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
+ * @param limit - 조회할 프로젝트 개수 (기본값: 4)
  * @returns 프로젝트 배열
  */
-export async function getProfileProjects(profileId: string, limit: number = 4) {
+export async function getProfileProjects(
+  client: SupabaseClient<Database>,
+  profileId: string,
+  limit: number = 4
+) {
   const { data, error } = await client
     .from("projects")
     .select("*")
@@ -235,10 +287,14 @@ export async function getProfileProjects(profileId: string, limit: number = 4) {
 
 /**
  * 프로필 플랜 개요 조회
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @returns 플랜 개요 객체 또는 null
  */
-export async function getProfileBillingPlan(profileId: string) {
+export async function getProfileBillingPlan(
+  client: SupabaseClient<Database>,
+  profileId: string
+) {
   const { data, error } = await client
     .from("profile_billing_plans")
     .select("*")
@@ -258,10 +314,14 @@ export async function getProfileBillingPlan(profileId: string) {
 
 /**
  * 프로필 결제 수단 조회
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @returns 결제 수단 배열 (기본 결제 수단 우선)
  */
-export async function getProfilePaymentMethods(profileId: string) {
+export async function getProfilePaymentMethods(
+  client: SupabaseClient<Database>,
+  profileId: string
+) {
   const { data, error } = await client
     .from("profile_payment_methods")
     .select("*")
@@ -279,10 +339,14 @@ export async function getProfilePaymentMethods(profileId: string) {
 
 /**
  * 프로필 인보이스 목록 조회
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @returns 인보이스 배열
  */
-export async function getProfileInvoices(profileId: string) {
+export async function getProfileInvoices(
+  client: SupabaseClient<Database>,
+  profileId: string
+) {
   const { data, error } = await client
     .from("profile_invoices")
     .select("*")
@@ -300,10 +364,14 @@ export async function getProfileInvoices(profileId: string) {
 
 /**
  * 프로필 결제 공지사항 조회 (최신 1개)
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @returns 결제 공지사항 객체 또는 null
  */
-export async function getProfileBillingNotice(profileId: string) {
+export async function getProfileBillingNotice(
+  client: SupabaseClient<Database>,
+  profileId: string
+) {
   const { data, error } = await client
     .from("profile_billing_notices")
     .select("*")
@@ -325,10 +393,14 @@ export async function getProfileBillingNotice(profileId: string) {
 
 /**
  * 프로필 팔로우 관계 조회
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @returns 팔로우 관계 배열
  */
-export async function getProfileFollows(profileId: string) {
+export async function getProfileFollows(
+  client: SupabaseClient<Database>,
+  profileId: string
+) {
   const { data, error } = await client
     .from("profile_follows")
     .select("*")
@@ -344,10 +416,14 @@ export async function getProfileFollows(profileId: string) {
 
 /**
  * 프로필 팔로워 조회
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @returns 팔로워 관계 배열
  */
-export async function getProfileFollowers(profileId: string) {
+export async function getProfileFollowers(
+  client: SupabaseClient<Database>,
+  profileId: string
+) {
   const { data, error } = await client
     .from("profile_follows")
     .select("*")
@@ -363,11 +439,13 @@ export async function getProfileFollowers(profileId: string) {
 
 /**
  * 프로필 알림 목록 조회
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @param limit - 조회할 알림 개수 (기본값: 50)
  * @returns 알림 배열
  */
 export async function getProfileNotifications(
+  client: SupabaseClient<Database>,
   profileId: string,
   limit: number = 50
 ) {
@@ -388,10 +466,14 @@ export async function getProfileNotifications(
 
 /**
  * 읽지 않은 알림 개수 조회
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @returns 읽지 않은 알림 개수
  */
-export async function getUnreadNotificationCount(profileId: string) {
+export async function getUnreadNotificationCount(
+  client: SupabaseClient<Database>,
+  profileId: string
+) {
   const { count, error } = await client
     .from("notifications")
     .select("*", { count: "exact", head: true })
@@ -408,11 +490,16 @@ export async function getUnreadNotificationCount(profileId: string) {
 
 /**
  * 메시지 스레드 목록 조회
+ * @param client - Supabase 클라이언트
  * @param profileId - 프로필 ID (UUID)
  * @param limit - 조회할 스레드 개수 (기본값: 50)
  * @returns 메시지 스레드 배열
  */
-export async function getMessageThreads(profileId: string, limit: number = 50) {
+export async function getMessageThreads(
+  client: SupabaseClient<Database>,
+  profileId: string,
+  limit: number = 50
+) {
   const { data, error } = await client
     .from("message_threads")
     .select("*")
@@ -431,11 +518,16 @@ export async function getMessageThreads(profileId: string, limit: number = 50) {
 
 /**
  * 메시지 엔트리 목록 조회 (특정 스레드)
+ * @param client - Supabase 클라이언트
  * @param threadId - 스레드 ID (serial ID)
  * @param limit - 조회할 메시지 개수 (기본값: 100)
  * @returns 메시지 엔트리 배열
  */
-export async function getMessageEntries(threadId: number, limit: number = 100) {
+export async function getMessageEntries(
+  client: SupabaseClient<Database>,
+  threadId: number,
+  limit: number = 100
+) {
   const { data, error } = await client
     .from("message_entries")
     .select("*")
@@ -516,7 +608,10 @@ export async function deductCreditsRPC(
     console.error("크레딧 차감 중 예외 발생:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "알 수 없는 오류가 발생했습니다.",
     };
   }
 }
@@ -578,7 +673,10 @@ export async function grantCreditsRPC(
     console.error("크레딧 지급 중 예외 발생:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "알 수 없는 오류가 발생했습니다.",
     };
   }
 }

@@ -5,7 +5,7 @@
 
 import { type ActionFunctionArgs, data, redirect } from "react-router";
 import { makeSSRClient } from "~/lib/supa-client";
-import { getUserById, grantCreditsRPC } from "~/features/users/queries";
+import { getLoggedInProfileId, grantCreditsRPC } from "~/features/users/queries";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Database } from "~/lib/supa-client";
 
@@ -23,35 +23,30 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const { client } = makeSSRClient(request);
 
-  // 현재 사용자 확인
-  const {
-    data: { user },
-  } = await client.auth.getUser();
-
-  if (!user) {
-    return data({ error: "로그인이 필요합니다." }, { status: 401 });
+  // 로그인한 사용자의 프로필 ID 가져오기 (인증 체크 포함)
+  let profileId: string;
+  try {
+    profileId = await getLoggedInProfileId(client);
+  } catch (error) {
+    // getLoggedInProfileId는 redirect를 throw하거나 에러를 throw함
+    if (error && typeof error === "object" && "status" in error) {
+      throw error; // redirect 에러는 그대로 전파
+    }
+    // Rate limit 에러인 경우 재시도하지 않도록 처리
+    if (error && typeof error === "object" && ("status" in error && (error as any).status === 429 || "code" in error && (error as any).code === "over_request_rate_limit")) {
+      console.error("Rate limit 도달 - 프로필 조회 실패:", error);
+      return data(
+        { error: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." },
+        { status: 429 }
+      );
+    }
+    return data(
+      { error: error instanceof Error ? error.message : "로그인이 필요합니다." },
+      { status: 401 }
+    );
   }
 
   try {
-    // 프로필 조회
-    let profile;
-    try {
-      profile = await getUserById(client, { id: user.id });
-    } catch (error: any) {
-      // Rate limit 에러인 경우 재시도하지 않도록 처리
-      if (error?.status === 429 || error?.code === "over_request_rate_limit") {
-        console.error("Rate limit 도달 - 프로필 조회 실패:", error);
-        return data(
-          { error: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." },
-          { status: 429 }
-        );
-      }
-      throw error;
-    }
-    
-    if (!profile?.id) {
-      return data({ error: "프로필을 찾을 수 없습니다." }, { status: 404 });
-    }
 
     const formData = await request.formData();
     const planName = formData.get("planName") as string;
@@ -69,7 +64,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const { data: existingPlan, error: planError } = await client
       .from("profile_billing_plans")
       .select("*")
-      .eq("profile_id", profile.id)
+      .eq("profile_id", profileId)
       .single();
 
     if (planError && planError.code !== "PGRST116") {
@@ -90,7 +85,7 @@ export async function action({ request }: ActionFunctionArgs) {
           renewal_date: renewalDate.toISOString().split("T")[0],
           updated_at: new Date().toISOString(),
         })
-        .eq("profile_id", profile.id);
+        .eq("profile_id", profileId);
 
       if (updateError) {
         console.error("구독 플랜 업데이트 실패:", updateError);
@@ -104,7 +99,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const { error: insertError } = await client
         .from("profile_billing_plans")
         .insert({
-          profile_id: profile.id,
+          profile_id: profileId,
           plan_name: planName,
           price_label: planPrice,
           monthly_credits: monthlyCredits,
@@ -124,7 +119,7 @@ export async function action({ request }: ActionFunctionArgs) {
     // 크레딧 지급 (매달 지급되는 크레딧)
     if (monthlyCredits > 0) {
       const creditResult = await grantCreditsRPC(client, {
-        profileId: profile.id,
+        profileId: profileId,
         amount: monthlyCredits,
         description: `${planName} 구독에 따른 월간 크레딧 지급`,
         metadata: {
@@ -147,7 +142,7 @@ export async function action({ request }: ActionFunctionArgs) {
         credit_monthly_amount: monthlyCredits,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", profile.id);
+      .eq("id", profileId);
 
     // 성공 시 대시보드로 리다이렉트
     return redirect("/my/dashboard");

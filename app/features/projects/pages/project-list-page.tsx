@@ -75,26 +75,24 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const { client } = makeSSRClient(request);
 
-    // 현재 사용자 정보 가져오기
-    const {
-      data: { user },
-    } = await client.auth.getUser();
-
+    // 현재 사용자 정보 가져오기 (선택적 인증 - 로그인하지 않아도 프로젝트 목록 접근 가능)
     let ownerProfileId: string | undefined = undefined;
-    if (user) {
-      try {
-        const profile = await getUserById(client, { id: user.id });
-        ownerProfileId = profile?.id;
-      } catch (error: any) {
-        // Rate limit 에러인 경우 재시도하지 않도록 처리
-        if (error?.status === 429 || error?.code === "over_request_rate_limit") {
-          console.error("Rate limit 도달 - 프로필 조회 건너뜀:", error);
-          // 프로필 없이 계속 진행 (빈 목록 반환)
-        } else {
-          console.error("프로필 조회 실패:", error);
-        }
-        // 프로필이 없어도 계속 진행 (빈 목록 반환)
+    try {
+      const { getLoggedInProfileId } = await import("~/features/users/queries");
+      ownerProfileId = await getLoggedInProfileId(client);
+    } catch (error: any) {
+      // 로그인하지 않은 경우 또는 Rate limit 에러인 경우 계속 진행
+      if (
+        error?.status === 429 ||
+        error?.code === "over_request_rate_limit"
+      ) {
+        console.error("Rate limit 도달 - 프로필 조회 건너뜀:", error);
+      } else if (error && typeof error === "object" && "status" in error) {
+        // redirect 에러는 무시 (로그인하지 않은 경우)
+      } else {
+        console.error("프로필 조회 실패:", error);
       }
+      // 프로필이 없어도 계속 진행 (비로그인 사용자도 프로젝트 목록 접근 가능)
     }
 
     // 병렬로 프로젝트 목록과 총 페이지 수 조회 (동일한 필터링 적용)
@@ -267,19 +265,29 @@ export default function ProjectListPage() {
             isCreate
             ctaText="프로젝트 생성하기 →"
           />
-          {projects.map((project) => (
-            <ProjectCard
-              key={project.project_id}
-              id={project.project_id}
-              to={`/my/dashboard/project/${project.project_id}/analytics`}
-              title={project.title}
-              description={project.description || undefined}
-              likes={formatNumber(project.likes)}
-              ctr={formatCTR(project.ctr)}
-              budget={formatBudget(project.budget)}
-              thumbnail={project.thumbnail || undefined}
-            />
-          ))}
+          {projects.map((project) => {
+            // 프로젝트 상태에 따라 라우팅 결정
+            // "completed" 상태면 analytics로, 그 외에는 프로젝트 상세 페이지(index = workspace)로
+            const projectRoute =
+              project.status === "completed"
+                ? `/my/dashboard/project/${project.project_id}/analytics`
+                : `/my/dashboard/project/${project.project_id}`;
+
+            return (
+              <ProjectCard
+                key={project.project_id}
+                id={project.project_id}
+                to={projectRoute}
+                title={project.title}
+                description={project.description || undefined}
+                likes={formatNumber(project.likes)}
+                ctr={formatCTR(project.ctr)}
+                budget={formatBudget(project.budget)}
+                thumbnail={project.thumbnail || undefined}
+                status={project.status || undefined}
+              />
+            );
+          })}
         </div>
 
         {/* 페이지네이션 */}
