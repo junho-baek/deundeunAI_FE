@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Button } from "~/common/components/ui/button";
 import { Check, Edit3 } from "lucide-react";
-import { Typography } from "~/common/components/typography";
 import { useFetcher } from "react-router";
 
 export type ProjectBriefReviewFormProps = {
@@ -138,4 +137,3 @@ export function ProjectBriefReviewForm({
 }
 
 export default ProjectBriefReviewForm;
-

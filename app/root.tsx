@@ -18,6 +18,7 @@ import {
   getCreditBalance,
   countUnreadNotifications,
 } from "./features/users/queries";
+import NavigationLoadingIndicator from "./common/components/navigation-loading-indicator";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -125,15 +126,16 @@ export default function App({ loaderData }: Route.ComponentProps) {
   ]
     .filter(Boolean)
     .join(" ");
-  const layoutClass = cn(
-    "flex h-full w-full flex-col",
-    surfaceClass,
-    isLoading && "animate-pulse transition-opacity"
-  );
+  const layoutClass = cn("flex h-full w-full flex-col", surfaceClass);
 
   return (
     <div className="w-screen h-screen overflow-hidden">
-      <div className={layoutClass}>
+      <NavigationLoadingIndicator />
+      <div
+        className={layoutClass}
+        aria-busy={isLoading}
+        data-loading={isLoading ? "true" : undefined}
+      >
         {!isMy && (
           <Navigation
             isLoggedIn={isLoggedIn}

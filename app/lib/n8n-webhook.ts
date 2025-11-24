@@ -1,7 +1,49 @@
+import type { ShortWorkflowJobRecord } from "~/features/projects/short-workflow";
+
 /**
  * n8n 웹훅 호출 유틸리티
  * 프로젝트 시작 시 n8n 워크플로우를 트리거합니다.
  */
+
+const serverEnv =
+  (typeof process !== "undefined" ? (process.env as Record<string, string | undefined>) : {}) ??
+  {};
+const clientEnv =
+  (typeof import.meta !== "undefined"
+    ? (import.meta.env as Record<string, string | undefined>)
+    : {}) ?? {};
+
+function resolveWebhookUrl(serverKey: string, clientKey: string) {
+  const isServer = typeof window === "undefined";
+  if (isServer) {
+    return serverEnv[serverKey] || serverEnv[clientKey];
+  }
+  return clientEnv[clientKey];
+}
+
+async function postJsonWebhook(
+  url: string,
+  payload: Record<string, unknown>,
+  label: string
+) {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.error(`${label} 웹훅 호출 실패:`, response.status, response.statusText);
+    } else {
+      console.log(`${label} 웹훅 호출 성공`);
+    }
+  } catch (error) {
+    console.error(`${label} 웹훅 호출 중 에러:`, error);
+  }
+}
 
 /**
  * n8n 웹훅 호출
@@ -12,13 +54,7 @@ export async function triggerN8nWebhook(
   eventType: string,
   data: Record<string, unknown>
 ): Promise<void> {
-  // 환경 변수에서 n8n 웹훅 URL 가져오기
-  // 서버 사이드: process.env 사용 (React Router가 주입)
-  // 클라이언트 사이드: import.meta.env 사용
-  const isServer = typeof window === "undefined";
-  const webhookUrl = isServer
-    ? process.env?.N8N_WEBHOOK_URL || process.env?.VITE_N8N_WEBHOOK_URL
-    : import.meta.env?.VITE_N8N_WEBHOOK_URL;
+  const webhookUrl = resolveWebhookUrl("N8N_WEBHOOK_URL", "VITE_N8N_WEBHOOK_URL");
 
   if (!webhookUrl) {
     console.warn(
@@ -27,32 +63,15 @@ export async function triggerN8nWebhook(
     return;
   }
 
-  try {
-    const response = await fetch(webhookUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        event_type: eventType,
-        timestamp: new Date().toISOString(),
-        ...data,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error(
-        "n8n 웹훅 호출 실패:",
-        response.status,
-        response.statusText
-      );
-    } else {
-      console.log("n8n 웹훅 호출 성공:", eventType);
-    }
-  } catch (error) {
-    // n8n 호출 실패가 프로젝트 생성 실패로 이어지지 않도록 에러를 무시
-    console.error("n8n 웹훅 호출 중 에러:", error);
-  }
+  await postJsonWebhook(
+    webhookUrl,
+    {
+      event_type: eventType,
+      timestamp: new Date().toISOString(),
+      ...data,
+    },
+    `n8n:${eventType}`
+  );
 }
 
 /**
@@ -99,4 +118,31 @@ export async function triggerProjectStepStartWebhook(stepData: {
     ...(stepData.metadata && { metadata: stepData.metadata }),
     short_workflow_keyword: stepData.shortWorkflowKeyword || undefined,
   });
+}
+
+/**
+ * 선택한 쇼츠 초안을 n8n step2 웹훅으로 전달
+ */
+export async function triggerShortWorkflowStepTwoWebhook(
+  job: ShortWorkflowJobRecord
+): Promise<void> {
+  const webhookUrl = resolveWebhookUrl(
+    "N8N_STEP2_WEBHOOK_URL",
+    "VITE_N8N_STEP2_WEBHOOK_URL"
+  );
+
+  if (!webhookUrl) {
+    console.warn(
+      "n8n step2 웹훅 URL이 설정되지 않았습니다. 환경 변수 N8N_STEP2_WEBHOOK_URL 또는 VITE_N8N_STEP2_WEBHOOK_URL을 설정해주세요."
+    );
+    return;
+  }
+
+  await postJsonWebhook(
+    webhookUrl,
+    {
+      ...job,
+    },
+    "n8n:short_workflow_step2"
+  );
 }

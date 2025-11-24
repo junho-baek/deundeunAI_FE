@@ -11,7 +11,6 @@ import { generateProjectUUID, getCurrentUserName } from "~/lib/uuid-utils";
 import { createProject, createInitialProjectSteps } from "~/features/projects/mutations";
 import { makeSSRClient } from "~/lib/supa-client";
 import { getLoggedInProfileId } from "~/features/users/queries";
-import { triggerProjectStartWebhook } from "~/lib/n8n-webhook";
 import {
   generateMockProjectTitle,
   generateMockProjectDescription,
@@ -209,19 +208,6 @@ export async function action({ request }: ActionFunctionArgs) {
       console.error("초기 채팅 내역 저장 실패 (프로젝트 생성은 계속 진행):", error);
     }
 
-    // n8n 워크플로우 트리거 (비동기, 에러 무시)
-    triggerProjectStartWebhook({
-      project_id: project.project_id,
-      project_title: project.title,
-      owner_profile_id: ownerProfileId,
-      status: project.status,
-      created_at: project.created_at,
-      metadata: project.metadata as Record<string, unknown> | undefined,
-      shortWorkflowKeyword,
-    }).catch((error) => {
-      console.error("n8n 웹훅 호출 실패 (프로젝트 생성은 계속 진행):", error);
-    });
-
     const params = new URLSearchParams();
     params.set("keyword", data.keyword);
     if (data.aspectRatio) {
@@ -234,14 +220,15 @@ export async function action({ request }: ActionFunctionArgs) {
 
     throw redirect(next);
   } catch (error) {
-    console.error("프로젝트 생성 실패:", error);
-    
-    // redirect 에러는 그대로 전파
+    if (error instanceof Response) {
+      throw error;
+    }
     if (error && typeof error === "object" && "status" in error) {
       throw error;
     }
+
+    console.error("프로젝트 생성 실패:", error);
     
-    // 다른 에러는 actionData로 반환
     return {
       fieldErrors: {
         keyword: [

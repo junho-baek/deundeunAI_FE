@@ -13,6 +13,8 @@ import ChatForm, { type ChatFormData } from "~/common/components/chat-form";
 import ChatInitForm, {
   type SurveySection,
 } from "~/features/projects/components/chat-init-form";
+import ProjectBriefActions from "~/features/projects/components/project-brief-actions";
+
 import {
   SHORT_WORKFLOW_CATEGORY_OPTIONS,
   SHORT_WORKFLOW_IMAGE_MODEL_OPTIONS,
@@ -678,7 +680,9 @@ export default function ProjectDetailLayout({
 }
 
 function AgentConversationMock() {
-  const { messages, loading, done, projectId } = useProjectDetail();
+  const projectDetail = useProjectDetail();
+  const { messages, loading, done } = projectDetail;
+  const agentProjectId = projectDetail.projectId;
   const formSubmitFetcher = useFetcher();
   const referenceSubmitFetcher = useFetcher();
   const formActionData = formSubmitFetcher.data as
@@ -703,8 +707,9 @@ function AgentConversationMock() {
     () =>
       messages.some((message) => {
         const meta =
-          (message.metadata as { isReferenceSubmission?: boolean } | undefined) ??
-          undefined;
+          (message.metadata as
+            | { isReferenceSubmission?: boolean }
+            | undefined) ?? undefined;
         return Boolean(meta?.isReferenceSubmission);
       }),
     [messages]
@@ -715,9 +720,44 @@ function AgentConversationMock() {
     referenceSubmitFetcher.state === "submitting" ||
     Boolean(referenceActionData?.success);
 
+  const [shortWorkflowReady, setShortWorkflowReady] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId: string }>).detail;
+      if (detail?.projectId === agentProjectId) {
+        setShortWorkflowReady(true);
+      }
+    };
+    window.addEventListener(
+      "project:short-workflow-ready",
+      handler as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        "project:short-workflow-ready",
+        handler as EventListener
+      );
+    };
+  }, [agentProjectId]);
+
+  React.useEffect(() => {
+    setShortWorkflowReady(false);
+    if (typeof window !== "undefined") {
+      const readySet =
+        ((window as any).__shortWorkflowReadyProjects as
+          | Set<string>
+          | undefined) ?? new Set<string>();
+      if (agentProjectId && readySet.has(agentProjectId)) {
+        setShortWorkflowReady(true);
+      }
+    }
+  }, [agentProjectId]);
+
   const handleFormSubmit = React.useCallback(
     async (values: Record<string, string[]>) => {
-      if (!projectId || projectId === "create") return;
+      if (!agentProjectId || agentProjectId === "create") return;
 
       const formData = new FormData();
       for (const [key, valueArray] of Object.entries(values)) {
@@ -728,10 +768,10 @@ function AgentConversationMock() {
 
       formSubmitFetcher.submit(formData, {
         method: "post",
-        action: `/my/dashboard/project/${projectId}/form/submit`,
+        action: `/my/dashboard/project/${agentProjectId}/form/submit`,
       });
     },
-    [projectId, formSubmitFetcher]
+    [agentProjectId, formSubmitFetcher]
   );
 
   const sections: SurveySection[] = React.useMemo(
@@ -761,7 +801,9 @@ function AgentConversationMock() {
   const hasFormResponseMessage = React.useMemo(
     () =>
       messages.some((message) => {
-        const meta = message.metadata as { isFormResponse?: boolean } | undefined;
+        const meta = message.metadata as
+          | { isFormResponse?: boolean }
+          | undefined;
         return Boolean(meta?.isFormResponse);
       }),
     [messages]
@@ -786,8 +828,29 @@ function AgentConversationMock() {
     !loading.brief &&
     hasSubmittedForm;
 
+  const showBriefActionCard =
+    shortWorkflowReady && hasSubmittedReference && hasSubmittedForm;
+
+  const emitWorkspaceEvent = React.useCallback(
+    (type: string) => {
+      if (!agentProjectId || agentProjectId === "create") return;
+      window.dispatchEvent(
+        new CustomEvent(type, { detail: { projectId: agentProjectId } })
+      );
+    },
+    [agentProjectId]
+  );
+
+  const handleBriefEditFromChat = React.useCallback(() => {
+    emitWorkspaceEvent("project:brief-edit");
+  }, [emitWorkspaceEvent]);
+
+  const handleBriefSubmitFromChat = React.useCallback(() => {
+    emitWorkspaceEvent("project:brief-submit");
+  }, [emitWorkspaceEvent]);
+
   const shouldShowReferenceForm =
-    hasProjectStarted && !hasSubmittedReference && !!projectId;
+    hasProjectStarted && !hasSubmittedReference && !!agentProjectId;
 
   const showReferencePlaceholder =
     referenceSubmitFetcher.state === "submitting";
@@ -819,8 +882,7 @@ function AgentConversationMock() {
       {/* 저장된 메시지 표시 */}
       {hasMessages &&
         messages.map((message) => {
-          const metadata = (message.metadata ??
-            {}) as {
+          const metadata = (message.metadata ?? {}) as {
             isFormResponse?: boolean;
             formData?: Record<string, string[]>;
           };
@@ -904,7 +966,7 @@ function AgentConversationMock() {
           );
         })}
 
-      {shouldShowReferenceForm && projectId && (
+      {shouldShowReferenceForm && agentProjectId && (
         <ChatBox
           role="agent"
           message="콘텐츠를 더 잘 이해할 수 있도록 참고 자료를 입력해주세요."
@@ -915,7 +977,7 @@ function AgentConversationMock() {
           <div className="mt-3 space-y-3">
             <referenceSubmitFetcher.Form
               method="post"
-              action={`/my/dashboard/project/${projectId}/reference/submit`}
+              action={`/my/dashboard/project/${agentProjectId}/reference/submit`}
               className="space-y-3"
             >
               <Textarea
@@ -994,6 +1056,21 @@ function AgentConversationMock() {
           childrenFullWidth
           showThinking
         />
+      )}
+
+      {showBriefActionCard && (
+        <ChatBox
+          role="agent"
+          avatarSrc="/agent.png"
+          stackBelowAvatar
+          childrenFullWidth
+        >
+          <ProjectBriefActions
+            layout="chat"
+            onEdit={handleBriefEditFromChat}
+            onSubmit={handleBriefSubmitFromChat}
+          />
+        </ChatBox>
       )}
 
       {/* 기획서 작성 중 */}

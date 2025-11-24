@@ -144,6 +144,7 @@ export default function Navigation({
     >
       <div className="flex items-center min-w-[50px]">
         <Link
+          prefetch="intent"
           to="/"
           className={cn(
             "font-bold tracking-tighter text-lg",
@@ -162,7 +163,7 @@ export default function Navigation({
                 <NavigationMenuItem key={menu.name}>
                   {menu.items ? (
                     <>
-                      <Link to={menu.to}>
+                      <Link prefetch="intent" to={menu.to}>
                         <NavigationMenuTrigger>
                           {menu.name}
                         </NavigationMenuTrigger>
@@ -181,6 +182,7 @@ export default function Navigation({
                             >
                               <NavigationMenuLink>
                                 <Link
+                                  prefetch="intent"
                                   className="p-3 space-y-1 block leading-none no-underline outline-none"
                                   to={item.to}
                                 >
@@ -198,7 +200,11 @@ export default function Navigation({
                       </NavigationMenuContent>
                     </>
                   ) : (
-                    <Link className={navigationMenuTriggerStyle()} to={menu.to}>
+                    <Link
+                      prefetch="intent"
+                      className={navigationMenuTriggerStyle()}
+                      to={menu.to}
+                    >
                       {menu.name}
                     </Link>
                   )}
@@ -221,7 +227,7 @@ export default function Navigation({
                 />
               )}
               <Button size="icon" variant="ghost" asChild className="relative">
-                <Link to="/my/notifications">
+                <Link prefetch="intent" to="/my/notifications">
                   <BellIcon className="size-4" />
                   {hasNotifications && (
                     <div className="absolute top-1.5 right-1.5 size-2 bg-red-500 rounded-full" />
@@ -229,7 +235,7 @@ export default function Navigation({
                 </Link>
               </Button>
               <Button size="icon" variant="ghost" asChild className="relative">
-                <Link to="/my/messages">
+                <Link prefetch="intent" to="/my/messages">
                   <MessageCircleIcon className="size-4" />
                   {hasMessages && (
                     <div className="absolute top-1.5 right-1.5 size-2 bg-red-500 rounded-full" />
@@ -258,19 +264,19 @@ export default function Navigation({
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link to="/my/dashboard">
+                  <Link prefetch="intent" to="/my/dashboard">
                     <BarChart3Icon className="size-4 mr-2" />
                     <Typography variant="small">Dashboard</Typography>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link to="/my/dashboard/settings/profile">
+                  <Link prefetch="intent" to="/my/dashboard/settings/profile">
                     <UserIcon className="size-4 mr-2" />
                     <Typography variant="small">Profile</Typography>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link to="/my/dashboard/settings/profile">
+                  <Link prefetch="intent" to="/my/dashboard/settings/profile">
                     <SettingsIcon className="size-4 mr-2" />
                     <Typography variant="small">Settings</Typography>
                   </Link>
@@ -278,7 +284,7 @@ export default function Navigation({
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild className="cursor-pointer">
-                <Link to="/logout">
+                <Link prefetch="intent" to="/logout">
                   <LogOutIcon className="size-4 mr-2" />
                   <Typography variant="small">Logout</Typography>
                 </Link>
@@ -291,12 +297,12 @@ export default function Navigation({
           {!compact && (
             <>
               <Button asChild variant="secondary">
-                <Link to="/auth/login">
+                <Link prefetch="intent" to="/auth/login">
                   <Typography variant="small">Login</Typography>
                 </Link>
               </Button>
               <Button asChild>
-                <Link to="/auth/join">
+                <Link prefetch="intent" to="/auth/join">
                   <Typography variant="small">Join</Typography>
                 </Link>
               </Button>

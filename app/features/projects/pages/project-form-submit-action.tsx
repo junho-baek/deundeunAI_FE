@@ -4,7 +4,7 @@ import { getLoggedInUserId } from "~/features/users/queries";
 import { getProjectByProjectId } from "../queries";
 import { updateProjectStep } from "../mutations";
 import { saveProjectMessage } from "../queries";
-import { triggerProjectStepStartWebhook } from "~/lib/n8n-webhook";
+import { triggerProjectStartWebhook } from "~/lib/n8n-webhook";
 import { upsertShortWorkflowKeyword } from "../short-workflow";
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -42,6 +42,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const formDataStr = JSON.stringify(formDataObj, null, 2);
     const metadata = (project.metadata ?? {}) as Record<string, unknown>;
+    const reference =
+      typeof metadata.reference === "string" ? metadata.reference : undefined;
+    const workflowStartedAt =
+      typeof metadata.workflow_started_at === "string"
+        ? (metadata.workflow_started_at as string)
+        : undefined;
     const keywordSource =
       typeof metadata.keyword === "string"
         ? metadata.keyword
@@ -70,6 +76,24 @@ export async function action({ request, params }: ActionFunctionArgs) {
       imageModel,
     });
 
+    const nowIso = new Date().toISOString();
+    const updatedMetadata = {
+      ...metadata,
+      reference,
+      category,
+      image_model: imageModel,
+      formData: formDataObj,
+      workflow_started_at: workflowStartedAt ?? nowIso,
+    };
+
+    await client
+      .from("projects")
+      .update({
+        metadata: updatedMetadata,
+        updated_at: nowIso,
+      })
+      .eq("id", project.id);
+
     await saveProjectMessage(client, {
       projectId,
       role: "user",
@@ -93,20 +117,28 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     await updateProjectStep(client, projectId, "brief", "in_progress", {
       formData: formDataObj,
-      started_at: new Date().toISOString(),
+      started_at: nowIso,
     });
 
-    await triggerProjectStepStartWebhook({
-      project_id: projectId,
-      step_key: "brief",
-      step_status: "in_progress",
-      started_at: new Date().toISOString(),
-      metadata: {
-        formData: formDataObj,
+    if (!workflowStartedAt) {
+      triggerProjectStartWebhook({
+        project_id: project.project_id,
+        project_title: project.title,
+        owner_profile_id: project.owner_profile_id,
+        status: project.status,
+        created_at: project.created_at,
+        metadata: {
+          ...updatedMetadata,
+          formData: formDataObj,
+        },
         shortWorkflowKeyword,
-      },
-      shortWorkflowKeyword,
-    });
+      }).catch((error) => {
+        console.error(
+          "n8n 프로젝트 시작 웹훅 호출 실패 (폼 제출은 유지):",
+          error
+        );
+      });
+    }
 
     return data({ success: true, message: "폼이 제출되었습니다." });
   } catch (error) {

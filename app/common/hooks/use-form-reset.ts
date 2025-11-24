@@ -9,7 +9,7 @@
  * 
  * return (
  *   <Form ref={formRef} method="post">
- *     {/* 폼 내용 */}
+ *     // 입력 필드
  *   </Form>
  * );
  * ```
