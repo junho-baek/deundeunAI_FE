@@ -7,10 +7,7 @@ import { type ActionFunctionArgs, data } from "react-router";
 import { makeSSRClient } from "~/lib/supa-client";
 import { getLoggedInUserId } from "~/features/users/queries";
 import { updateProjectStep } from "../mutations";
-import {
-  triggerProjectStepStartWebhook,
-  triggerShortWorkflowStepTwoWebhook,
-} from "~/lib/n8n-webhook";
+import { triggerShortWorkflowStepTwoWebhook } from "~/lib/n8n-webhook";
 import { getProjectWorkspaceData, saveStepData } from "../queries";
 import type { ShortWorkflowJobRecord } from "../short-workflow";
 
@@ -154,14 +151,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     // script 단계를 in_progress로 시작
     await updateProjectStep(client, projectId, "script", "in_progress");
-
-    // n8n 웹훅 호출 (스크립트 생성 시작)
-    await triggerProjectStepStartWebhook({
-      project_id: projectId,
-      step_key: "script",
-      step_status: "in_progress",
-      started_at: new Date().toISOString(),
-    });
 
     return data({ success: true, message: "기획서가 제출되었습니다." });
   } catch (error) {
