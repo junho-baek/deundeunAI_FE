@@ -233,6 +233,8 @@ function useProjectDetailState(
   const loaderData = loaderDataProp ?? loaderDataFromHook;
   const initialChatPayload = loaderData?.initialChatPayload ?? null;
   const savedMessages = loaderData?.savedMessages ?? [];
+  const projectSerialId = loaderData?.project?.id ?? null;
+  const initialProjectSteps = loaderData?.projectSteps ?? [];
 
   // 프로젝트 단계 상태 폴링 및 동기화
   const { getStepLoading, getStepDone, stepStatusMap } = useProjectStepStatus(
@@ -240,6 +242,8 @@ function useProjectDetailState(
     {
       enabled: !!projectId && projectId !== "create",
       interval: 3000, // 3초마다 폴링
+      projectSerialId,
+      initialSteps: initialProjectSteps,
     }
   );
 
@@ -829,7 +833,10 @@ function AgentConversationMock() {
     hasSubmittedForm;
 
   const showBriefActionCard =
-    shortWorkflowReady && hasSubmittedReference && hasSubmittedForm;
+    shortWorkflowReady &&
+    hasSubmittedReference &&
+    hasSubmittedForm &&
+    !done.brief;
 
   const emitWorkspaceEvent = React.useCallback(
     (type: string) => {

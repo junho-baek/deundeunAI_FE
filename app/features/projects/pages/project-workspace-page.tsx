@@ -14,8 +14,12 @@ import { ProjectAccordion } from "~/features/projects/components/project-accordi
 import { Typography } from "~/common/components/typography";
 import ProjectPrd from "~/features/projects/components/project-prd";
 import ProjectScript from "~/features/projects/components/project-script";
-import ProjectScriptAudio from "~/features/projects/components/project-script-audio";
-import ProjectImageSelect from "~/features/projects/components/project-image-select";
+import ProjectScriptAudio, {
+  type AudioSegment,
+} from "~/features/projects/components/project-script-audio";
+import ProjectImageSelect, {
+  type ProjectImageEntry,
+} from "~/features/projects/components/project-image-select";
 import ProjectVideoSelect from "~/features/projects/components/project-video-select";
 import ProjectFinalVideo from "~/features/projects/components/project-final-video";
 import ProjectBriefEditor from "~/features/projects/components/project-brief-editor";
@@ -30,14 +34,27 @@ import {
 } from "~/features/projects/queries";
 import { makeSSRClient } from "~/lib/supa-client";
 import {
-  generateMockBrief,
   generateMockProjectTitle,
   generateMockProjectDescription,
 } from "~/features/projects/utils/mock-data";
-import type { ShortWorkflowJobRecord } from "../short-workflow";
-import { getShortWorkflowJobsByProject } from "../short-workflow";
+import type {
+  ShortWorkflowJobRecord,
+  ShortWorkflowImageRecord,
+} from "../short-workflow";
+import {
+  getShortWorkflowJobsByProject,
+  getShortWorkflowImagesByProject,
+} from "../short-workflow";
 import { browserClient } from "~/lib/supa-client";
 import { Skeleton } from "~/common/components/ui/skeleton";
+import { useRealtime } from "~/hooks/use-realtime";
+import {
+  buildBriefMarkdownFromFields,
+  deriveBriefFormValuesFromJob,
+  deriveBriefFormValuesFromMetadata,
+  emptyProjectBriefFormValues,
+} from "../utils/brief-form";
+import type { ProjectBriefFormValues } from "../utils/brief-form";
 
 export const meta: MetaFunction = () => {
   return [
@@ -94,21 +111,27 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       console.error("이벤트 트래킹 실패:", error);
     }
 
-    const [workspaceData, projectSteps] = await Promise.all([
-      getProjectWorkspaceData(client, projectId),
-      getProjectSteps(client, projectId),
-    ]);
-
-    const shortWorkflowJobsPromise = getShortWorkflowJobsByProject(client, {
-      projectRowId: project.id,
-      ownerProfileId,
-      limit: 5,
-    });
+    const [workspaceData, projectSteps, shortWorkflowJobs, shortWorkflowImages] =
+      await Promise.all([
+        getProjectWorkspaceData(client, projectId),
+        getProjectSteps(client, projectId),
+        getShortWorkflowJobsByProject(client, {
+          projectRowId: project.id,
+          ownerProfileId,
+          limit: 5,
+        }),
+        getShortWorkflowImagesByProject(client, {
+          projectRowId: project.id,
+          ownerProfileId,
+          limit: 16,
+        }),
+      ]);
 
     return {
       workspaceData,
       projectSteps,
-      shortWorkflowJobs: shortWorkflowJobsPromise,
+      shortWorkflowJobs,
+      shortWorkflowImages,
       projectRowId: project.id,
     };
   } catch (error) {
@@ -166,68 +189,47 @@ export default function ProjectWorkspacePage({
   const loaderProjectRowId = loaderData?.projectRowId as number | undefined;
   const workspaceData = workspaceDataProp ?? loaderWorkspaceData ?? null;
   const projectSteps = loaderProjectSteps;
-  const shortWorkflowJobsPromise = React.useMemo(() => {
-    const value = loaderData?.shortWorkflowJobs;
-    if (!value) {
-      return Promise.resolve<ShortWorkflowJobRecord[]>([]);
-    }
-    if (typeof (value as Promise<ShortWorkflowJobRecord[]>).then === "function") {
-      return value as Promise<ShortWorkflowJobRecord[]>;
-    }
-    return Promise.resolve(
-      (value as ShortWorkflowJobRecord[] | undefined) ?? []
-    );
-  }, [loaderData?.shortWorkflowJobs]);
+  const shortWorkflowJobs =
+    (loaderData?.shortWorkflowJobs as ShortWorkflowJobRecord[] | undefined) ??
+    [];
+  const shortWorkflowImages =
+    (loaderData?.shortWorkflowImages as ShortWorkflowImageRecord[] | undefined) ??
+    [];
 
   // projectId는 optional (project-create-page.tsx에서는 없을 수 있음)
   const params = useParams();
   const projectId = params?.projectId;
   const projectRowId = loaderProjectRowId ?? workspaceData?.project?.id;
 
-  const [shortWorkflowJobs, setShortWorkflowJobs] = React.useState<
-    ShortWorkflowJobRecord[]
-  >([]);
+  useRealtime({
+    supabase: browserClient,
+    channelName: `short-workflow-jobs-${projectRowId ?? "pending"}`,
+    table: "short_workflow_jobs",
+    filter: projectRowId ? `project_id=eq.${projectRowId}` : undefined,
+    enabled: Boolean(projectRowId),
+  });
+  useRealtime({
+    supabase: browserClient,
+    channelName: `short-workflow-images-${projectRowId ?? "pending"}`,
+    table: "short_workflow_images",
+    filter: projectRowId ? `project_id=eq.${projectRowId}` : undefined,
+    enabled: Boolean(projectRowId),
+  });
+
   const [selectedJobId, setSelectedJobId] = React.useState<number | null>(
     null
   );
 
   React.useEffect(() => {
-    setShortWorkflowJobs([]);
-    setSelectedJobId(null);
-  }, [projectId]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    const loadInitialJobs = async () => {
-      const source = shortWorkflowJobsPromise;
-      if (!source) {
-        if (!cancelled) {
-          setShortWorkflowJobs([]);
-        }
-        return;
-      }
-      try {
-        const maybePromise =
-          source as PromiseLike<ShortWorkflowJobRecord[] | undefined>;
-        const resolved =
-          source &&
-          typeof (maybePromise as { then?: unknown }).then === "function"
-            ? await maybePromise
-            : (source as ShortWorkflowJobRecord[] | undefined);
-        if (cancelled) return;
-        if (!Array.isArray(resolved)) return;
-        setShortWorkflowJobs((current) =>
-          current.length > 0 ? current : resolved ?? []
-        );
-      } catch (error) {
-        console.error("쇼츠 초안 초기 데이터 동기화 실패:", error);
-      }
-    };
-    loadInitialJobs();
-    return () => {
-      cancelled = true;
-    };
-  }, [shortWorkflowJobsPromise]);
+    if (!selectedJobId && shortWorkflowJobs.length > 0) {
+      setSelectedJobId(shortWorkflowJobs[0].id);
+    } else if (
+      selectedJobId &&
+      !shortWorkflowJobs.some((job) => job.id === selectedJobId)
+    ) {
+      setSelectedJobId(shortWorkflowJobs[0]?.id ?? null);
+    }
+  }, [shortWorkflowJobs, selectedJobId]);
 
   React.useEffect(() => {
     if (
@@ -268,51 +270,6 @@ export default function ProjectWorkspacePage({
     announcedWorkflowRef.current = true;
   }, [projectId, shortWorkflowJobs.length]);
 
-  React.useEffect(() => {
-    if (!projectRowId) return;
-    const channel = browserClient
-      .channel(`short-workflow-jobs-${projectRowId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "short_workflow_jobs",
-          filter: `project_id=eq.${projectRowId}`,
-        },
-        (payload) => {
-          setShortWorkflowJobs((prev) => {
-            let next = [...prev];
-            if (
-              payload.eventType === "INSERT" ||
-              payload.eventType === "UPDATE"
-            ) {
-              const newJob = payload.new as ShortWorkflowJobRecord;
-              next = [newJob, ...next.filter((job) => job.id !== newJob.id)];
-            } else if (payload.eventType === "DELETE") {
-              const deletedId = (
-                payload.old as { id?: number } | null | undefined
-              )?.id;
-              if (deletedId) {
-                next = next.filter((job) => job.id !== deletedId);
-              }
-            }
-            return next
-              .sort(
-                (a, b) =>
-                  new Date(b.created_at).getTime() -
-                  new Date(a.created_at).getTime()
-              )
-              .slice(0, 5);
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      browserClient.removeChannel(channel);
-    };
-  }, [projectRowId]);
 
   const {
     imageTimelines,
@@ -323,6 +280,7 @@ export default function ProjectWorkspacePage({
     toggleSelectVideo,
     loading,
     done,
+    setDone,
     narrationSegments: defaultNarrationSegments,
   } = useProjectDetail();
 
@@ -428,6 +386,13 @@ export default function ProjectWorkspacePage({
     ]
   );
 
+  const isBriefLocked = optimisticDone.brief;
+  const isScriptLocked = optimisticDone.script;
+  const isNarrationLocked = optimisticDone.narration;
+  const isImagesLocked = optimisticDone.images;
+  const isVideosLocked = optimisticDone.videos;
+  const isFinalLocked = optimisticDone.final;
+
   const optimisticLoading = React.useMemo<LoadingState>(
     () => ({
       brief: loading.brief || briefSubmitPending || briefUpdatePending,
@@ -479,7 +444,8 @@ export default function ProjectWorkspacePage({
   const briefCardLoading = optimisticLoading.brief || isShortWorkflowLoading;
   const briefCardDone =
     optimisticDone.brief || (isShortWorkflowReady && !briefCardLoading);
-  const canInteractWithBrief = isShortWorkflowReady && !briefCardLoading;
+  const canInteractWithBrief =
+    isShortWorkflowReady && !briefCardLoading && !isBriefLocked;
 
   // 데이터베이스에서 가져온 문서 데이터 사용
   const briefDocument = React.useMemo(() => {
@@ -518,36 +484,43 @@ export default function ProjectWorkspacePage({
     [selectedJobId, shortWorkflowJobs]
   );
 
-  const shortWorkflowJobMarkdown = React.useMemo(() => {
-    if (!selectedShortWorkflowJob) return null;
-    return formatShortWorkflowJobMarkdown(selectedShortWorkflowJob);
-  }, [selectedShortWorkflowJob]);
+  const metadataBriefFormValues = React.useMemo(
+    () => deriveBriefFormValuesFromMetadata(briefDocument?.metadata),
+    [briefDocument?.metadata]
+  );
 
-  const derivedBriefContent = React.useMemo(() => {
+  const jobBriefFormValues = React.useMemo(
+    () => deriveBriefFormValuesFromJob(selectedShortWorkflowJob),
+    [selectedShortWorkflowJob]
+  );
+
+  const derivedBriefFormValues = React.useMemo<ProjectBriefFormValues>(() => {
+    if (jobBriefFormValues) return jobBriefFormValues;
+    if (metadataBriefFormValues) return metadataBriefFormValues;
     if (briefDocument?.content) {
-      return briefDocument.content;
+      return {
+        ...emptyProjectBriefFormValues,
+        description: briefDocument.content,
+      };
     }
-    if (shortWorkflowJobMarkdown) {
-      return shortWorkflowJobMarkdown;
-    }
-    return generateMockBrief(projectKeyword);
-  }, [briefDocument, projectKeyword, shortWorkflowJobMarkdown]);
+    return emptyProjectBriefFormValues;
+  }, [jobBriefFormValues, metadataBriefFormValues, briefDocument?.content]);
 
-  const derivedBriefRef = React.useRef(derivedBriefContent);
-  const [activeBriefContent, setActiveBriefContent] =
-    React.useState(derivedBriefContent);
+  const [briefFormValues, setBriefFormValues] = React.useState<ProjectBriefFormValues>(
+    derivedBriefFormValues
+  );
+
   React.useEffect(() => {
-    if (derivedBriefContent !== derivedBriefRef.current) {
-      derivedBriefRef.current = derivedBriefContent;
-      setActiveBriefContent(derivedBriefContent);
-    }
-  }, [derivedBriefContent]);
-  const [pendingBriefContent, setPendingBriefContent] = React.useState<
-    string | null
-  >(null);
+    setBriefFormValues(derivedBriefFormValues);
+  }, [derivedBriefFormValues]);
 
-  // 대본 단락 (데이터베이스에서 가져오거나 실감나는 기본값)
-  const scriptParagraphs = React.useMemo(() => {
+  const briefMarkdownHtml = React.useMemo(
+    () => renderMarkdown(buildBriefMarkdownFromFields(briefFormValues)),
+    [briefFormValues]
+  );
+
+  // 대본 단락 (문서 or short-workflow job)
+  const documentScriptParagraphs = React.useMemo(() => {
     if (
       scriptDocument?.content_json &&
       Array.isArray(scriptDocument.content_json)
@@ -562,6 +535,19 @@ export default function ProjectWorkspacePage({
     }
     return [];
   }, [scriptDocument]);
+  const shortWorkflowScriptParagraphs = React.useMemo(
+    () => buildScriptParagraphsFromJob(selectedShortWorkflowJob),
+    [selectedShortWorkflowJob]
+  );
+  const scriptParagraphs = React.useMemo(() => {
+    if (shortWorkflowScriptParagraphs.length > 0) {
+      return shortWorkflowScriptParagraphs;
+    }
+    if (documentScriptParagraphs.length > 0) {
+      return documentScriptParagraphs;
+    }
+    return [];
+  }, [shortWorkflowScriptParagraphs, documentScriptParagraphs]);
   const hasScriptParagraphs = scriptParagraphs.length > 0;
 
   // 오디오 세그먼트 (데이터베이스에서 가져오거나 기본값)
@@ -579,15 +565,34 @@ export default function ProjectWorkspacePage({
         src: seg.audio_url || `/audio/seg-${index + 1}.mp3`,
       }));
     }
-    return null; // 기본값은 useProjectDetail에서 가져옴
+    return null;
   }, [workspaceData]);
-  const narrationSegments =
-    narrationSegmentsFromDb && narrationSegmentsFromDb.length > 0
-      ? narrationSegmentsFromDb
-      : [];
+  const shortWorkflowAudioSegments = React.useMemo(
+    () => buildAudioSegmentsFromJob(selectedShortWorkflowJob),
+    [selectedShortWorkflowJob]
+  );
+  const hasShortWorkflowAudio = Boolean(selectedShortWorkflowJob?.audio_file);
+  const narrationSegments = React.useMemo(() => {
+    if (shortWorkflowAudioSegments.length > 0) {
+      return shortWorkflowAudioSegments;
+    }
+    if (narrationSegmentsFromDb && narrationSegmentsFromDb.length > 0) {
+      return narrationSegmentsFromDb;
+    }
+    return [];
+  }, [shortWorkflowAudioSegments, narrationSegmentsFromDb]);
   const hasNarrationSegments = narrationSegments.length > 0;
+  const shouldShowNarrationStep =
+    hasNarrationSegments ||
+    optimisticLoading.narration ||
+    (isShortWorkflowReady && hasShortWorkflowAudio);
+  const canManageScript = hasScriptParagraphs && !isScriptLocked;
+  const canManageNarration =
+    shouldShowNarrationStep &&
+    (hasNarrationSegments || hasShortWorkflowAudio) &&
+    !isNarrationLocked;
 
-  // 이미지 URL 목록 (미디어 자산에서 가져오기)
+  // 이미지 URL 목록 (미디어 자산에서 가져오기) - 최종 자산 fallback
   const imageUrls = React.useMemo(() => {
     if (!workspaceData?.mediaAssets) return null;
     return workspaceData.mediaAssets
@@ -595,7 +600,44 @@ export default function ProjectWorkspacePage({
       .map((asset: any) => asset.source_url || asset.preview_url)
       .filter((url: string | null) => url);
   }, [workspaceData]);
-  const hasImageAssets = Boolean(imageUrls && imageUrls.length > 0);
+
+  const shortWorkflowImageEntries = React.useMemo<ProjectImageEntry[]>(() => {
+    if (shortWorkflowImages.length === 0) return [];
+    const sorted = [...shortWorkflowImages].sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    return sorted.map((img, index) => ({
+      id: img.id,
+      src: img.image_url || img.movie_url || null,
+      status: img.status,
+      label: img.position || imageTimelines[index] || `씬 ${index + 1}`,
+    }));
+  }, [shortWorkflowImages, imageTimelines]);
+
+  const fallbackImageEntries = React.useMemo<ProjectImageEntry[]>(() => {
+    if (!imageUrls || imageUrls.length === 0) return [];
+    return imageUrls.map((src, idx) => ({
+      id: `asset-${idx}`,
+      src,
+      status: "success",
+      label: imageTimelines[idx] || `씬 ${idx + 1}`,
+    }));
+  }, [imageUrls, imageTimelines]);
+
+  const imageEntries =
+    shortWorkflowImageEntries.length > 0
+      ? shortWorkflowImageEntries
+      : fallbackImageEntries;
+  const hasImageEntries = imageEntries.length > 0;
+  const canManageImages = hasImageEntries && !isImagesLocked;
+  const handleToggleImageSelect = React.useCallback(
+    (id: number) => {
+      if (!canManageImages) return;
+      toggleSelectImage(id);
+    },
+    [canManageImages, toggleSelectImage]
+  );
 
   // 비디오 URL 목록 (미디어 자산에서 가져오기)
   const videoUrls = React.useMemo(() => {
@@ -606,6 +648,14 @@ export default function ProjectWorkspacePage({
       .filter((url: string | null) => url);
   }, [workspaceData]);
   const hasVideoAssets = Boolean(videoUrls && videoUrls.length > 0);
+  const canManageVideos = hasVideoAssets && !isVideosLocked;
+  const handleToggleVideoSelect = React.useCallback(
+    (id: number) => {
+      if (!canManageVideos) return;
+      toggleSelectVideo(id);
+    },
+    [canManageVideos, toggleSelectVideo]
+  );
 
   // 최종 비디오 URL
   const finalVideoUrl = React.useMemo(() => {
@@ -615,29 +665,37 @@ export default function ProjectWorkspacePage({
     return videoUrls && videoUrls.length > 0 ? videoUrls[0] : null;
   }, [workspaceData, videoUrls]);
   const hasFinalVideo = Boolean(finalVideoUrl);
+  const canManageFinal = hasFinalVideo && !isFinalLocked;
 
   // Action handlers
   const handleBriefEdit = React.useCallback(() => {
+    if (!canInteractWithBrief) return;
     setIsEditingBrief(true);
-  }, []);
+  }, [canInteractWithBrief]);
 
   const handleBriefCancel = React.useCallback(() => {
     setIsEditingBrief(false);
   }, []);
 
   const handleBriefSave = React.useCallback(
-    async (content: string) => {
-      if (!projectId) return;
-      setPendingBriefContent(content);
+    async (values: ProjectBriefFormValues) => {
+      if (!projectId || !canInteractWithBrief) return;
+      setBriefFormValues(values);
       const formData = new FormData();
-      formData.append("content", content);
+      Object.entries(values).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        formData.append(
+          `form_${key}`,
+          typeof value === "number" ? String(value) : value
+        );
+      });
       briefUpdateFetcher.submit(formData, {
         method: "post",
         action: `/my/dashboard/project/${projectId}/brief/update`,
       });
       setIsEditingBrief(false);
     },
-    [projectId, briefUpdateFetcher]
+    [projectId, canInteractWithBrief, briefUpdateFetcher]
   );
 
   const handleBriefApprove = React.useCallback(() => {
@@ -651,7 +709,17 @@ export default function ProjectWorkspacePage({
 
     const formData = new FormData();
     formData.append("shortWorkflowJobId", String(jobId));
-    formData.append("briefContent", activeBriefContent);
+    Object.entries(briefFormValues).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      formData.append(
+        `form_${key}`,
+        typeof value === "number" ? String(value) : value
+      );
+    });
+    formData.append(
+      "briefContent",
+      buildBriefMarkdownFromFields(briefFormValues)
+    );
 
     briefSubmitFetcher.submit(formData, {
       method: "post",
@@ -663,7 +731,7 @@ export default function ProjectWorkspacePage({
     canInteractWithBrief,
     selectedJobId,
     shortWorkflowJobs,
-    activeBriefContent,
+    briefFormValues,
     briefSubmitFetcher,
   ]);
 
@@ -701,9 +769,16 @@ export default function ProjectWorkspacePage({
     };
   }, [projectId, handleBriefEdit, handleBriefApprove, canInteractWithBrief]);
 
+  React.useEffect(() => {
+    if (isBriefLocked && isEditingBrief) {
+      setIsEditingBrief(false);
+    }
+  }, [isBriefLocked, isEditingBrief]);
+
   const handleScriptEdit = React.useCallback(() => {
+    if (isScriptLocked) return;
     setIsEditingScript(true);
-  }, []);
+  }, [isScriptLocked]);
 
   const handleScriptCancel = React.useCallback(() => {
     setIsEditingScript(false);
@@ -711,7 +786,7 @@ export default function ProjectWorkspacePage({
 
   const handleScriptSave = React.useCallback(
     async (content: string | string[]) => {
-      if (!projectId) return;
+      if (!projectId || isScriptLocked) return;
       const formData = new FormData();
       formData.append("content", JSON.stringify(content));
       scriptUpdateFetcher.submit(formData, {
@@ -720,11 +795,11 @@ export default function ProjectWorkspacePage({
       });
       setIsEditingScript(false);
     },
-    [projectId, scriptUpdateFetcher]
+    [projectId, isScriptLocked, scriptUpdateFetcher]
   );
 
   const handleScriptApprove = React.useCallback(() => {
-    if (!projectId) return;
+    if (!projectId || isScriptLocked) return;
     scriptSubmitFetcher.submit(
       {},
       {
@@ -732,10 +807,10 @@ export default function ProjectWorkspacePage({
         action: `/my/dashboard/project/${projectId}/script/submit`,
       }
     );
-  }, [projectId, scriptSubmitFetcher]);
+  }, [projectId, isScriptLocked, scriptSubmitFetcher]);
 
   const handleNarrationRegenerate = React.useCallback(() => {
-    if (!projectId) return;
+    if (!projectId || isNarrationLocked) return;
     narrationRegenerateFetcher.submit(
       {},
       {
@@ -743,10 +818,10 @@ export default function ProjectWorkspacePage({
         action: `/my/dashboard/project/${projectId}/narration/regenerate`,
       }
     );
-  }, [projectId, narrationRegenerateFetcher]);
+  }, [projectId, isNarrationLocked, narrationRegenerateFetcher]);
 
   const handleNarrationApprove = React.useCallback(() => {
-    if (!projectId) return;
+    if (!projectId || isNarrationLocked) return;
     narrationSubmitFetcher.submit(
       {},
       {
@@ -754,20 +829,20 @@ export default function ProjectWorkspacePage({
         action: `/my/dashboard/project/${projectId}/narration/submit`,
       }
     );
-  }, [projectId, narrationSubmitFetcher]);
+  }, [projectId, isNarrationLocked, narrationSubmitFetcher]);
 
   const handleImagesRegenerate = React.useCallback(() => {
-    if (!projectId || selectedImages.length === 0) return;
+    if (!projectId || selectedImages.length === 0 || isImagesLocked) return;
     const formData = new FormData();
     formData.append("imageIds", JSON.stringify(selectedImages));
     imagesRegenerateFetcher.submit(formData, {
       method: "post",
       action: `/my/dashboard/project/${projectId}/images/regenerate`,
     });
-  }, [projectId, selectedImages, imagesRegenerateFetcher]);
+  }, [projectId, selectedImages, isImagesLocked, imagesRegenerateFetcher]);
 
   const handleImagesApprove = React.useCallback(() => {
-    if (!projectId) return;
+    if (!projectId || isImagesLocked) return;
     const formData = new FormData();
     if (selectedImages.length > 0) {
       formData.append("imageIds", JSON.stringify(selectedImages));
@@ -776,20 +851,20 @@ export default function ProjectWorkspacePage({
       method: "post",
       action: `/my/dashboard/project/${projectId}/images/submit`,
     });
-  }, [projectId, selectedImages, imagesSubmitFetcher]);
+  }, [projectId, selectedImages, isImagesLocked, imagesSubmitFetcher]);
 
   const handleVideosRegenerate = React.useCallback(() => {
-    if (!projectId || selectedVideos.length === 0) return;
+    if (!projectId || selectedVideos.length === 0 || isVideosLocked) return;
     const formData = new FormData();
     formData.append("videoIds", JSON.stringify(selectedVideos));
     videosRegenerateFetcher.submit(formData, {
       method: "post",
       action: `/my/dashboard/project/${projectId}/videos/regenerate`,
     });
-  }, [projectId, selectedVideos, videosRegenerateFetcher]);
+  }, [projectId, selectedVideos, isVideosLocked, videosRegenerateFetcher]);
 
   const handleVideosApprove = React.useCallback(() => {
-    if (!projectId) return;
+    if (!projectId || isVideosLocked) return;
     const formData = new FormData();
     if (selectedVideos.length > 0) {
       formData.append("videoId", String(selectedVideos[0]));
@@ -798,10 +873,10 @@ export default function ProjectWorkspacePage({
       method: "post",
       action: `/my/dashboard/project/${projectId}/videos/submit`,
     });
-  }, [projectId, selectedVideos, videosSubmitFetcher]);
+  }, [projectId, selectedVideos, isVideosLocked, videosSubmitFetcher]);
 
   const handleDeploy = React.useCallback(() => {
-    if (!projectId) return;
+    if (!projectId || isFinalLocked) return;
     deployFetcher.submit(
       {},
       {
@@ -809,18 +884,7 @@ export default function ProjectWorkspacePage({
         action: `/my/dashboard/project/${projectId}/deploy`,
       }
     );
-  }, [projectId, deployFetcher]);
-
-  // Action data에서 성공 메시지 확인 후 편집 모드 해제
-  React.useEffect(() => {
-    if (briefUpdateFetcher.data?.success) {
-      setIsEditingBrief(false);
-      if (pendingBriefContent) {
-        setActiveBriefContent(pendingBriefContent);
-        setPendingBriefContent(null);
-      }
-    }
-  }, [briefUpdateFetcher.data, pendingBriefContent]);
+  }, [projectId, isFinalLocked, deployFetcher]);
 
   React.useEffect(() => {
     if (scriptUpdateFetcher.data?.success) {
@@ -828,27 +892,48 @@ export default function ProjectWorkspacePage({
     }
   }, [scriptUpdateFetcher.data]);
 
+  React.useEffect(() => {
+    if (isScriptLocked && isEditingScript) {
+      setIsEditingScript(false);
+    }
+  }, [isScriptLocked, isEditingScript]);
+
+  React.useEffect(() => {
+    if (briefSubmitFetcher.data?.success) {
+      setDone((prev) => ({ ...prev, brief: true }));
+    }
+  }, [briefSubmitFetcher.data, setDone]);
+
+  React.useEffect(() => {
+    if (scriptSubmitFetcher.data?.success) {
+      setDone((prev) => ({ ...prev, script: true }));
+    }
+  }, [scriptSubmitFetcher.data, setDone]);
+
+  React.useEffect(() => {
+    if (narrationSubmitFetcher.data?.success) {
+      setDone((prev) => ({ ...prev, narration: true }));
+    }
+  }, [narrationSubmitFetcher.data, setDone]);
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto pr-1">
-        <React.Suspense fallback={<ShortWorkflowJobDeckSkeleton />}>
-          <Await resolve={shortWorkflowJobsPromise}>
-            {(initialJobs) => (
-              <ShortWorkflowJobDeckContent
-                initialJobs={initialJobs ?? []}
-                currentJobs={shortWorkflowJobs}
-                selectedJobId={selectedJobId}
-                onSelect={setSelectedJobId}
-              />
-            )}
-          </Await>
-        </React.Suspense>
+        {shortWorkflowJobs.length > 0 ? (
+          <ShortWorkflowJobDeckContent
+            jobs={shortWorkflowJobs}
+            selectedJobId={selectedJobId}
+            onSelect={setSelectedJobId}
+          />
+        ) : (
+          <ShortWorkflowJobDeckSkeleton />
+        )}
         <ProjectAccordion defaultValue={defaultAccordionValue}>
           {/* Step 1: Brief */}
           <ProjectPrd
             value="step-1"
             title="step 1: 수익형 콘텐츠 기획서"
-            markdownHtml={renderMarkdown(activeBriefContent)}
+            markdownHtml={briefMarkdownHtml}
             loading={briefCardLoading}
             done={briefCardDone}
             onEdit={canInteractWithBrief ? handleBriefEdit : undefined}
@@ -857,10 +942,10 @@ export default function ProjectWorkspacePage({
           {isEditingBrief && canInteractWithBrief && (
             <div className="px-4 pb-4">
               <ProjectBriefEditor
-                projectId={projectId || ""}
-                initialContent={activeBriefContent}
+                initialValues={briefFormValues}
                 onCancel={handleBriefCancel}
                 onSave={handleBriefSave}
+                isSubmitting={briefUpdateFetcher.state !== "idle"}
               />
             </div>
           )}
@@ -873,10 +958,10 @@ export default function ProjectWorkspacePage({
                 paragraphs={scriptParagraphs}
                 loading={optimisticLoading.script}
                 done={optimisticDone.script}
-                onEdit={optimisticDone.script ? handleScriptEdit : undefined}
-                onDone={optimisticDone.script ? handleScriptApprove : undefined}
+                onEdit={canManageScript ? handleScriptEdit : undefined}
+                onDone={canManageScript ? handleScriptApprove : undefined}
               />
-              {isEditingScript && optimisticDone.script && (
+              {isEditingScript && canManageScript && (
                 <div className="px-4 pb-4">
                   <ProjectScriptEditor
                     projectId={projectId || ""}
@@ -889,35 +974,38 @@ export default function ProjectWorkspacePage({
             </>
           )}
 
-          {hasNarrationSegments && (
+          {shouldShowNarrationStep && (
             <ProjectScriptAudio
               value="step-3"
               title="step 3: 나레이션 확인하기"
               segments={narrationSegments}
-              loading={optimisticLoading.narration}
+              loading={
+                optimisticLoading.narration ||
+                (!hasNarrationSegments && hasShortWorkflowAudio)
+              }
               done={optimisticDone.narration}
               onEdit={
-                optimisticDone.narration ? handleNarrationRegenerate : undefined
+                canManageNarration ? handleNarrationRegenerate : undefined
               }
               onDone={
-                optimisticDone.narration ? handleNarrationApprove : undefined
+                canManageNarration ? handleNarrationApprove : undefined
               }
             />
           )}
 
-          {hasImageAssets && (
+          {(hasImageEntries || optimisticLoading.images) && (
             <ProjectImageSelect
               value="step-4"
               title="step 4: 생성된 이미지"
-              images={imageUrls!}
+              images={imageEntries}
               timelines={imageTimelines}
               selected={selectedImages}
-              onToggle={toggleSelectImage}
+              onToggle={canManageImages ? handleToggleImageSelect : undefined}
               onRegenerate={
-                optimisticDone.images ? handleImagesRegenerate : undefined
+                canManageImages ? handleImagesRegenerate : undefined
               }
-              onDone={optimisticDone.images ? handleImagesApprove : undefined}
-              loading={optimisticLoading.images}
+              onDone={canManageImages ? handleImagesApprove : undefined}
+              loading={optimisticLoading.images && !hasImageEntries}
               done={optimisticDone.images}
             />
           )}
@@ -929,11 +1017,11 @@ export default function ProjectWorkspacePage({
               sources={videoUrls!}
               timelines={videoTimelines}
               selected={selectedVideos}
-              onToggle={toggleSelectVideo}
+              onToggle={canManageVideos ? handleToggleVideoSelect : undefined}
               onRegenerate={
-                optimisticDone.videos ? handleVideosRegenerate : undefined
+                canManageVideos ? handleVideosRegenerate : undefined
               }
-              onDone={optimisticDone.videos ? handleVideosApprove : undefined}
+              onDone={canManageVideos ? handleVideosApprove : undefined}
               loading={optimisticLoading.videos}
               done={optimisticDone.videos}
             />
@@ -955,7 +1043,7 @@ export default function ProjectWorkspacePage({
               durationText="영상 길이 00:30"
               loading={optimisticLoading.final}
               done={optimisticDone.final}
-              onDone={optimisticDone.final ? handleDeploy : undefined}
+              onDone={canManageFinal ? handleDeploy : undefined}
             />
           )}
         </ProjectAccordion>
@@ -1007,38 +1095,129 @@ function renderMarkdown(md: string): string {
   return html;
 }
 
+type ShortWorkflowOutputPayload = {
+  converted?: string;
+  original?: string;
+  [key: string]: unknown;
+};
+
+function parseShortWorkflowOutput(
+  output: string | null | undefined
+): ShortWorkflowOutputPayload | null {
+  if (!output) return null;
+  try {
+    const parsed = JSON.parse(output);
+    if (parsed && typeof parsed === "object") {
+      return parsed as ShortWorkflowOutputPayload;
+    }
+  } catch (error) {
+    console.warn("short_workflow_jobs.output JSON parse 실패:", error);
+  }
+  return { converted: output };
+}
+
+function splitIntoParagraphs(text: string): string[] {
+  const trimmed = text?.trim();
+  if (!trimmed) return [];
+
+  const newlineParts = trimmed
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (newlineParts.length > 1) {
+    return newlineParts;
+  }
+
+  const sentences = trimmed.match(/[^.!?]+[.!?]?/g);
+  if (!sentences) {
+    return [trimmed];
+  }
+
+  const result: string[] = [];
+  let buffer = "";
+  sentences.forEach((sentence) => {
+    const current = sentence.trim();
+    if (!current) return;
+    if (!buffer) {
+      buffer = current;
+      return;
+    }
+    const combined = `${buffer} ${current}`.trim();
+    if (combined.length <= 160) {
+      buffer = combined;
+    } else {
+      result.push(buffer);
+      buffer = current;
+    }
+  });
+  if (buffer) {
+    result.push(buffer);
+  }
+  return result;
+}
+
+function buildScriptParagraphsFromJob(
+  job: ShortWorkflowJobRecord | null
+): string[] {
+  if (!job) return [];
+  const paragraphs: string[] = [];
+  const parsedOutput = parseShortWorkflowOutput(job.output);
+  if (parsedOutput?.converted) {
+    paragraphs.push(...splitIntoParagraphs(parsedOutput.converted));
+  } else if (parsedOutput?.original) {
+    paragraphs.push(...splitIntoParagraphs(parsedOutput.original));
+  }
+
+  const appendIfPresent = (label: string | null | undefined, prefix?: string) => {
+    if (!label) return;
+    const value = label.trim();
+    if (!value) return;
+    paragraphs.push(prefix ? `${prefix} ${value}` : value);
+  };
+
+  appendIfPresent(job.description);
+  appendIfPresent(job.intro, "Intro:");
+  appendIfPresent(job.base);
+  appendIfPresent(job.cta, "CTA:");
+
+  return paragraphs.filter((p) => p && p.trim().length > 0);
+}
+
+function buildAudioSegmentsFromJob(
+  job: ShortWorkflowJobRecord | null
+): AudioSegment[] {
+  if (!job?.audio_file) {
+    return [];
+  }
+  return [
+    {
+      id: `short-workflow-audio-${job.id}`,
+      label: job.title || "AI 나레이션",
+      src: job.audio_file,
+    },
+  ];
+}
+
 type ShortWorkflowJobDeckContentProps = {
-  initialJobs: ShortWorkflowJobRecord[];
-  currentJobs: ShortWorkflowJobRecord[];
+  jobs: ShortWorkflowJobRecord[];
   selectedJobId: number | null;
   onSelect: (id: number) => void;
 };
 
 function ShortWorkflowJobDeckContent({
-  initialJobs,
-  currentJobs,
+  jobs,
   selectedJobId,
   onSelect,
 }: ShortWorkflowJobDeckContentProps) {
-  React.useEffect(() => {
-    if (selectedJobId === null && initialJobs.length > 0) {
-      onSelect(initialJobs[0].id);
-    }
-  }, [initialJobs, onSelect, selectedJobId]);
-
-  const jobsToRender =
-    currentJobs.length > 0 ? currentJobs : initialJobs;
-
-  if (jobsToRender.length === 0) {
+  if (jobs.length === 0) {
     return <ShortWorkflowJobDeckEmpty />;
   }
 
-  const resolvedSelectedId =
-    selectedJobId ?? jobsToRender[0]?.id ?? null;
+  const resolvedSelectedId = selectedJobId ?? jobs[0]?.id ?? null;
 
   return (
     <ShortWorkflowJobDeck
-      jobs={jobsToRender}
+      jobs={jobs}
       selectedJobId={resolvedSelectedId}
       onSelect={onSelect}
     />
@@ -1084,32 +1263,6 @@ function ShortWorkflowJobDeckEmpty() {
       </div>
     </section>
   );
-}
-
-function formatShortWorkflowJobMarkdown(job: ShortWorkflowJobRecord): string {
-  const details: string[] = [];
-  details.push(`# ${job.title || "제목 미정"}`);
-  details.push(
-    [
-      `- **키워드:** ${job.keyword || "미정"}`,
-      `- **카테고리:** ${job.category || "미정"}`,
-      `- **길이:** ${job.length || "0"}`,
-      `- **태그:** ${job.tags || "없음"}`,
-    ].join("\n")
-  );
-  if (job.description) {
-    details.push(`- **설명:** ${job.description}`);
-  }
-  if (job.intro) {
-    details.push(`## Intro\n${job.intro}`);
-  }
-  if (job.base) {
-    details.push(`## 본문\n${job.base}`);
-  }
-  if (job.cta) {
-    details.push(`## CTA\n${job.cta}`);
-  }
-  return details.join("\n\n");
 }
 
 function ShortWorkflowJobDeck({

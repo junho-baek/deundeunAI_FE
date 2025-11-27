@@ -8,7 +8,7 @@ import { makeSSRClient } from "~/lib/supa-client";
 import { getLoggedInUserId } from "~/features/users/queries";
 import { updateProjectStep } from "../mutations";
 import { triggerProjectStepStartWebhook } from "~/lib/n8n-webhook";
-import { getProjectWorkspaceData, saveStepData } from "../queries";
+import { getProjectWorkspaceData, getProjectSteps, saveStepData } from "../queries";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   if (request.method !== "POST") {
@@ -24,6 +24,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   try {
     await getLoggedInUserId(client);
+
+    const projectSteps = await getProjectSteps(client, projectId);
+    const scriptStep = projectSteps.find((step) => step.key === "script");
+    if (scriptStep?.status === "completed") {
+      return data({
+        success: true,
+        alreadyCompleted: true,
+        message: "이미 확정된 대본입니다.",
+      });
+    }
 
     // 현재 워크스페이스 데이터에서 대본 내용 가져오기
     const workspaceData = await getProjectWorkspaceData(client, projectId);

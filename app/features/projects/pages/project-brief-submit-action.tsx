@@ -8,8 +8,15 @@ import { makeSSRClient } from "~/lib/supa-client";
 import { getLoggedInUserId } from "~/features/users/queries";
 import { updateProjectStep } from "../mutations";
 import { triggerShortWorkflowStepTwoWebhook } from "~/lib/n8n-webhook";
-import { getProjectWorkspaceData, saveStepData } from "../queries";
+import { getProjectWorkspaceData, getProjectSteps, saveStepData } from "../queries";
 import type { ShortWorkflowJobRecord } from "../short-workflow";
+import {
+  briefFormValuesFromFormData,
+  briefFormValuesToMetadata,
+  buildBriefMarkdownFromFields,
+  deriveBriefFormValuesFromJob,
+  emptyProjectBriefFormValues,
+} from "../utils/brief-form";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   if (request.method !== "POST") {
@@ -27,13 +34,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
     await getLoggedInUserId(client);
 
     const formData = await request.formData();
-    const formEntries = Array.from(formData.entries()).reduce<Record<string, unknown>>(
-      (acc, [key, value]) => {
-        acc[key] = value;
-        return acc;
-      },
-      {}
-    );
     const shortWorkflowJobIdRaw = formData.get("shortWorkflowJobId");
     const shortWorkflowJobId =
       typeof shortWorkflowJobIdRaw === "string"
@@ -54,6 +54,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
       typeof briefContentFromForm === "string"
         ? briefContentFromForm.trim()
         : "";
+    const requestFormValues = briefFormValuesFromFormData(formData);
+    const hasCustomFormPayload = Object.values(requestFormValues).some((value) =>
+      typeof value === "number"
+        ? Number.isFinite(value)
+        : Boolean(value && value.toString().trim())
+    );
 
     if (!Number.isFinite(shortWorkflowJobId)) {
       console.warn(
@@ -81,22 +87,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
 
+    const projectSteps = await getProjectSteps(client, projectId);
+    const briefStep = projectSteps.find((step) => step.key === "brief");
+    if (briefStep?.status === "completed") {
+      return data({
+        success: true,
+        alreadyCompleted: true,
+        message: "이미 확정된 기획서입니다.",
+      });
+    }
+
     const briefDocument = workspaceData?.documents?.find(
       (doc) => doc.type === "brief"
     );
-
-    const finalBriefContent =
-      normalizedBriefContent.length > 0
-        ? normalizedBriefContent
-        : briefDocument?.content;
-
-    // 기획서 데이터를 DB에 저장 (없으면 에러 반환)
-    if (!finalBriefContent) {
-      return data(
-        { error: "기획서 내용이 없습니다. 먼저 기획서를 생성해주세요." },
-        { status: 400 }
-      );
-    }
 
     const { data: jobRecord, error: jobSelectError } = await client
       .from("short_workflow_jobs")
@@ -131,6 +134,28 @@ export async function action({ request, params }: ActionFunctionArgs) {
       throw jobUpdateError || new Error("기획서 상태 업데이트에 실패했습니다.");
     }
 
+    const jobFormValues =
+      deriveBriefFormValuesFromJob(reservedJob as ShortWorkflowJobRecord) ??
+      emptyProjectBriefFormValues;
+    const formValuesForStorage = hasCustomFormPayload
+      ? requestFormValues
+      : jobFormValues;
+    const metadataPayload = briefFormValuesToMetadata(formValuesForStorage);
+    const generatedBriefContent = buildBriefMarkdownFromFields(
+      formValuesForStorage
+    );
+    const finalBriefContent =
+      normalizedBriefContent && normalizedBriefContent.length > 0
+        ? normalizedBriefContent
+        : generatedBriefContent || briefDocument?.content || "";
+
+    if (!finalBriefContent || !finalBriefContent.trim()) {
+      return data(
+        { error: "기획서 내용이 없습니다. 먼저 기획서를 생성해주세요." },
+        { status: 400 }
+      );
+    }
+
     triggerShortWorkflowStepTwoWebhook(reservedJob as ShortWorkflowJobRecord).catch(
       (error) => {
         console.error("n8n step2 웹훅 호출 실패:", error);
@@ -142,7 +167,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       stepKey: "brief",
       data: {
         content: finalBriefContent,
-        metadata: {},
+        metadata: metadataPayload,
       },
     });
 

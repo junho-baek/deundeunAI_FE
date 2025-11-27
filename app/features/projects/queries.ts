@@ -638,80 +638,80 @@ export async function getProjectStats(
   client: SupabaseClient<Database>,
   ownerProfileId?: string
 ) {
+  const fallbackStats = {
+    totalLikes: 0,
+    totalViews: 0,
+    averageCTR: 0,
+    totalBudget: 0,
+    projectCount: 0,
+  };
+
   // View를 사용하되, ownerProfileId가 있으면 필터링을 위해 원본 테이블 사용
   // (View는 집계된 전체 데이터만 제공하므로)
   if (ownerProfileId) {
     // 특정 사용자의 프로젝트만 집계해야 하는 경우 원본 테이블 사용
-    let query = client.from("projects").select("likes, views, ctr, budget");
-    query = query.eq("owner_profile_id", ownerProfileId);
+    try {
+      let query = client.from("projects").select("likes, views, ctr, budget");
+      query = query.eq("owner_profile_id", ownerProfileId);
 
-    const { data, error } = await query;
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        return fallbackStats;
+      }
+
+      const totalLikes = data.reduce((sum, p) => sum + (p.likes || 0), 0);
+      const totalViews = data.reduce((sum, p) => sum + (p.views || 0), 0);
+      const ctrValues = data.filter((p) => p.ctr != null).map((p) => p.ctr!);
+      const averageCTR =
+        ctrValues.length > 0
+          ? ctrValues.reduce((sum, ctr) => sum + ctr, 0) / ctrValues.length
+          : 0;
+      const totalBudget = data.reduce((sum, p) => sum + (p.budget || 0), 0);
+
+      return {
+        totalLikes,
+        totalViews,
+        averageCTR,
+        totalBudget,
+        projectCount: data.length,
+      };
+    } catch (error) {
+      console.error("프로젝트 통계 조회 실패:", error);
+      return fallbackStats;
+    }
+  }
+
+  try {
+    // 전체 통계는 View 사용
+    const { data, error } = await client
+      .from("project_stats_view")
+      .select("*")
+      .single();
 
     if (error) {
-      console.error("프로젝트 통계 조회 실패:", error);
-      throw new Error(
-        `프로젝트 통계를 불러오는데 실패했습니다: ${error.message}`
-      );
+      throw error;
     }
 
-    if (!data || data.length === 0) {
-      return {
-        totalLikes: 0,
-        totalViews: 0,
-        averageCTR: 0,
-        totalBudget: 0,
-        projectCount: 0,
-      };
+    if (!data) {
+      return fallbackStats;
     }
-
-    const totalLikes = data.reduce((sum, p) => sum + (p.likes || 0), 0);
-    const totalViews = data.reduce((sum, p) => sum + (p.views || 0), 0);
-    const ctrValues = data.filter((p) => p.ctr != null).map((p) => p.ctr!);
-    const averageCTR =
-      ctrValues.length > 0
-        ? ctrValues.reduce((sum, ctr) => sum + ctr, 0) / ctrValues.length
-        : 0;
-    const totalBudget = data.reduce((sum, p) => sum + (p.budget || 0), 0);
 
     return {
-      totalLikes,
-      totalViews,
-      averageCTR,
-      totalBudget,
-      projectCount: data.length,
+      totalLikes: Number(data.total_likes) || 0,
+      totalViews: Number(data.total_views) || 0,
+      averageCTR: Number(data.average_ctr) || 0,
+      totalBudget: Number(data.total_budget) || 0,
+      projectCount: Number(data.project_count) || 0,
     };
-  }
-
-  // 전체 통계는 View 사용
-  const { data, error } = await client
-    .from("project_stats_view")
-    .select("*")
-    .single();
-
-  if (error) {
+  } catch (error) {
     console.error("프로젝트 통계 조회 실패:", error);
-    throw new Error(
-      `프로젝트 통계를 불러오는데 실패했습니다: ${error.message}`
-    );
+    return fallbackStats;
   }
-
-  if (!data) {
-    return {
-      totalLikes: 0,
-      totalViews: 0,
-      averageCTR: 0,
-      totalBudget: 0,
-      projectCount: 0,
-    };
-  }
-
-  return {
-    totalLikes: Number(data.total_likes) || 0,
-    totalViews: Number(data.total_views) || 0,
-    averageCTR: Number(data.average_ctr) || 0,
-    totalBudget: Number(data.total_budget) || 0,
-    projectCount: Number(data.project_count) || 0,
-  };
 }
 
 /**

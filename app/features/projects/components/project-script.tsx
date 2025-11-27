@@ -35,6 +35,7 @@ export function ProjectScript({
   onEdit,
   onDone,
 }: ProjectScriptProps) {
+  const showActions = Boolean(onEdit || onDone);
   return (
     <AccordionItem value={value}>
       <AccordionTrigger className="text-base font-semibold leading-tight md:text-lg">
@@ -71,26 +72,32 @@ export function ProjectScript({
                 </Typography>
               ))}
             </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onEdit}
-                className="px-4 py-2 text-sm md:text-base"
-              >
-                <Edit3 className="h-4 w-4" />
-                수정하기
-              </Button>
-              <Button
-                variant="default"
-                className="rounded-full bg-green-500 px-5 py-2 text-sm md:text-base"
-                size="sm"
-                onClick={onDone}
-              >
-                <Check className="h-4 w-4" />
-                완료
-              </Button>
-            </div>
+            {showActions ? (
+              <div className="flex justify-end gap-2">
+                {onEdit ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onEdit}
+                    className="px-4 py-2 text-sm md:text-base"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    수정하기
+                  </Button>
+                ) : null}
+                {onDone ? (
+                  <Button
+                    variant="default"
+                    className="rounded-full bg-green-500 px-5 py-2 text-sm md:text-base"
+                    size="sm"
+                    onClick={onDone}
+                  >
+                    <Check className="h-4 w-4" />
+                    완료
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
           </>
         )}
       </AccordionContent>

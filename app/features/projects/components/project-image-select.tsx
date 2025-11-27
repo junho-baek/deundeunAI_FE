@@ -3,7 +3,11 @@ import { Button } from "~/common/components/ui/button";
 import { Check, Edit3 } from "lucide-react";
 import { Skeleton } from "~/common/components/ui/skeleton";
 import { Spinner } from "~/common/components/ui/spinner";
-import { AccordionItem, AccordionTrigger, AccordionContent } from "./project-accordion";
+import {
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "./project-accordion";
 import { Typography } from "~/common/components/typography";
 
 function StepStatus({ loading, done }: { loading?: boolean; done?: boolean }) {
@@ -12,21 +16,50 @@ function StepStatus({ loading, done }: { loading?: boolean; done?: boolean }) {
   return null;
 }
 
+export type ProjectImageEntry = {
+  id: number | string;
+  src: string | null;
+  status: string;
+  label?: string | null;
+};
+
 export type ProjectImageSelectProps = {
   value: string;
   title: string;
-  images: string[]; // urls
+  images: ProjectImageEntry[];
   timelines: string[];
   selected: number[];
-  onToggle: (index: number) => void;
+  onToggle?: (index: number) => void;
   onRegenerate?: () => void;
   onDone?: () => void;
   loading?: boolean;
   done?: boolean;
 };
 
-export function ProjectImageSelect(props: ProjectImageSelectProps) {
-  const { value, title, images, timelines, selected, onToggle, onRegenerate, onDone, loading, done } = props;
+export function ProjectImageSelect({
+  value,
+  title,
+  images,
+  timelines,
+  selected,
+  onToggle,
+  onRegenerate,
+  onDone,
+  loading,
+  done,
+}: ProjectImageSelectProps) {
+  const placeholderEntries: ProjectImageEntry[] =
+    loading && images.length === 0
+      ? Array.from({ length: 4 }).map((_, idx) => ({
+          id: `placeholder-${idx}`,
+          src: null,
+          status: "in_progress",
+          label: timelines[idx] || `씬 ${idx + 1}`,
+        }))
+      : [];
+
+  const displayImages = images.length > 0 ? images : placeholderEntries;
+
   return (
     <AccordionItem value={value}>
       <AccordionTrigger className="text-base font-semibold leading-tight md:text-lg">
@@ -42,32 +75,48 @@ export function ProjectImageSelect(props: ProjectImageSelectProps) {
         </span>
       </AccordionTrigger>
       <AccordionContent className="px-4 text-base leading-relaxed">
-        {loading ? (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-            {images.map((_, i) => (
-              <div key={i} className="space-y-1">
-                <div className="relative aspect-9/16 w-full overflow-hidden rounded-lg border bg-muted">
-                  <Skeleton className="absolute inset-0 h-full w-full" />
-                </div>
-                <Skeleton className="h-3 w-20 mx-auto" />
-              </div>
-            ))}
+        {displayImages.length === 0 ? (
+          <div className="rounded-xl border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+            아직 생성된 이미지가 없습니다.
           </div>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {images.map((src, i) => {
+              {displayImages.map((entry, i) => {
+                const isReady = Boolean(entry.src);
                 const isSelected = selected.includes(i + 1);
+                const timelineLabel =
+                  entry.label || timelines[i] || `씬 ${i + 1}`;
+                const canToggle = Boolean(onToggle && isReady);
                 return (
-                  <div key={i} className="space-y-1">
+                  <div key={entry.id ?? i} className="space-y-1">
                     <button
                       type="button"
-                      onClick={() => onToggle(i + 1)}
-                      className="group relative aspect-9/16 w-full overflow-hidden rounded-xl border bg-muted shadow-sm transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      onClick={() => (canToggle ? onToggle?.(i + 1) : undefined)}
+                      disabled={!canToggle}
+                      className="group relative aspect-9/16 w-full overflow-hidden rounded-xl border bg-muted shadow-sm transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-70"
                       aria-pressed={isSelected}
                     >
-                      <img src={src} alt={`image ${i + 1}`} className="absolute inset-0 h-full w-full object-cover" />
-                      <span className={"absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full border-2 text-sm font-semibold transition " + (isSelected ? "border-primary bg-primary text-primary-foreground" : "border-white/80 bg-background/80 text-transparent group-hover:text-white/80")} aria-hidden="true">
+                      {entry.src ? (
+                        <img
+                          src={entry.src}
+                          alt={`image ${i + 1}`}
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Skeleton className="h-full w-full" />
+                        </div>
+                      )}
+                      <span
+                        className={
+                          "absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full border-2 text-sm font-semibold transition " +
+                          (isSelected && isReady
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-white/80 bg-background/80 text-transparent group-hover:text-white/80")
+                        }
+                        aria-hidden="true"
+                      >
                         <Check className="h-4 w-4" />
                       </span>
                     </button>
@@ -76,16 +125,38 @@ export function ProjectImageSelect(props: ProjectImageSelectProps) {
                       variant="muted"
                       className="text-center text-sm leading-relaxed text-muted-foreground"
                     >
-                      {timelines[i]}
+                      {timelineLabel}
                     </Typography>
                   </div>
                 );
               })}
             </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={onRegenerate} className="px-4 py-2 text-sm md:text-base"><Edit3 className="h-4 w-4" />재생성</Button>
-              <Button variant="default" className="rounded-full bg-green-500 px-5 py-2 text-sm md:text-base" size="sm" onClick={onDone}><Check className="h-4 w-4" />완료</Button>
-            </div>
+            {onRegenerate || onDone ? (
+              <div className="mt-4 flex justify-end gap-2">
+                {onRegenerate ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onRegenerate}
+                    className="px-4 py-2 text-sm md:text-base"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    재생성
+                  </Button>
+                ) : null}
+                {onDone ? (
+                  <Button
+                    variant="default"
+                    className="rounded-full bg-green-500 px-5 py-2 text-sm md:text-base"
+                    size="sm"
+                    onClick={onDone}
+                  >
+                    <Check className="h-4 w-4" />
+                    완료
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
           </>
         )}
       </AccordionContent>
@@ -94,5 +165,3 @@ export function ProjectImageSelect(props: ProjectImageSelectProps) {
 }
 
 export default ProjectImageSelect;
-
-

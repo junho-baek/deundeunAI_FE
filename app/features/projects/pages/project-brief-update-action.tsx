@@ -9,6 +9,11 @@ import { getLoggedInUserId } from "~/features/users/queries";
 import { getProjectByProjectId, saveStepData } from "../queries";
 import { updateProjectStep } from "../mutations";
 import { triggerProjectStepStartWebhook } from "~/lib/n8n-webhook";
+import {
+  briefFormValuesFromFormData,
+  briefFormValuesToMetadata,
+  buildBriefMarkdownFromFields,
+} from "../utils/brief-form";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   if (request.method !== "POST") {
@@ -26,11 +31,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
     await getLoggedInUserId(client);
 
     const formData = await request.formData();
-    const content = formData.get("content") as string;
+    const formValues = briefFormValuesFromFormData(formData);
+    const content = buildBriefMarkdownFromFields(formValues);
 
     if (!content || !content.trim()) {
       return data({ error: "기획서 내용을 입력해주세요." }, { status: 400 });
     }
+    const metadataPayload = briefFormValuesToMetadata(formValues);
 
     // 프로젝트 문서 업데이트 (project_documents 테이블)
     const project = await getProjectByProjectId(client, projectId);
@@ -52,6 +59,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         .from("project_documents")
         .update({
           content,
+          metadata: metadataPayload,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingDoc.id);
@@ -67,6 +75,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
           project_id: project.id,
           type: "brief",
           content,
+          metadata: metadataPayload,
           status: "draft",
         });
 
@@ -81,10 +90,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       stepKey: "brief",
       data: {
         content,
-        metadata: {
-          updated_content: content,
-          regenerated_at: new Date().toISOString(),
-        },
+        metadata: metadataPayload,
       },
     });
 
@@ -103,6 +109,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       metadata: {
         action: "regenerate",
         content,
+        form: formValues,
       },
     });
 

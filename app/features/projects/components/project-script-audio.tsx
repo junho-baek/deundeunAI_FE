@@ -66,45 +66,57 @@ export function ProjectScriptAudio({
           </div>
         ) : (
           <>
-            <div className="mt-1 space-y-2">
-              {segments.map((seg) => (
-                <div
-                  key={seg.id}
-                  className="flex items-center justify-between rounded-xl border px-4 py-3"
-                >
-                  <Typography
-                    as="span"
-                    variant="p"
-                    className="text-base font-medium leading-relaxed text-foreground not-first:mt-0"
+            {segments.length > 0 ? (
+              <div className="mt-1 space-y-2">
+                {segments.map((seg) => (
+                  <div
+                    key={seg.id}
+                    className="flex items-center justify-between rounded-xl border px-4 py-3"
                   >
-                    {seg.label}
-                  </Typography>
-                  <audio controls preload="none" className="w-56">
-                    <source src={seg.src} type="audio/mpeg" />
-                  </audio>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onEdit}
-                className="px-4 py-2 text-sm md:text-base"
-              >
-                <Edit3 className="h-4 w-4" />
-                수정하기
-              </Button>
-              <Button
-                variant="default"
-                className="rounded-full bg-green-500 px-5 py-2 text-sm md:text-base"
-                size="sm"
-                onClick={onDone}
-              >
-                <Check className="h-4 w-4" />
-                완료
-              </Button>
-            </div>
+                    <Typography
+                      as="span"
+                      variant="p"
+                      className="text-base font-medium leading-relaxed text-foreground not-first:mt-0"
+                    >
+                      {seg.label}
+                    </Typography>
+                    <audio controls preload="none" className="w-56">
+                      <source src={seg.src} type="audio/mpeg" />
+                    </audio>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                나레이션이 아직 준비되지 않았어요. 잠시만 기다려 주세요.
+              </div>
+            )}
+            {onEdit || onDone ? (
+              <div className="flex justify-end gap-2">
+                {onEdit ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onEdit}
+                    className="px-4 py-2 text-sm md:text-base"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    수정하기
+                  </Button>
+                ) : null}
+                {onDone ? (
+                  <Button
+                    variant="default"
+                    className="rounded-full bg-green-500 px-5 py-2 text-sm md:text-base"
+                    size="sm"
+                    onClick={onDone}
+                  >
+                    <Check className="h-4 w-4" />
+                    완료
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
           </>
         )}
       </AccordionContent>

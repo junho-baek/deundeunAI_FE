@@ -18,7 +18,7 @@ export type ProjectVideoSelectProps = {
   sources: string[]; // mp4 urls
   timelines: string[];
   selected: number[];
-  onToggle: (index: number) => void;
+  onToggle?: (index: number) => void;
   onRegenerate?: () => void;
   onDone?: () => void;
   loading?: boolean;
@@ -58,12 +58,16 @@ export function ProjectVideoSelect(props: ProjectVideoSelectProps) {
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
               {sources.map((src, i) => {
                 const isSelected = selected.includes(i + 1);
+                const canToggle = Boolean(onToggle);
                 return (
                   <div key={i} className="space-y-1">
                     <button
                       type="button"
-                      onClick={() => onToggle(i + 1)}
-                      className="group relative aspect-9/16 w-full overflow-hidden rounded-xl border bg-muted shadow-sm transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      onClick={() =>
+                        canToggle ? onToggle?.(i + 1) : undefined
+                      }
+                      className="group relative aspect-9/16 w-full overflow-hidden rounded-xl border bg-muted shadow-sm transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-70"
+                      disabled={!canToggle}
                       aria-pressed={isSelected}
                     >
                       <video className="absolute inset-0 h-full w-full object-cover" muted loop playsInline preload="metadata">
@@ -84,10 +88,32 @@ export function ProjectVideoSelect(props: ProjectVideoSelectProps) {
                 );
               })}
             </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={onRegenerate} className="px-4 py-2 text-sm md:text-base"><Edit3 className="h-4 w-4" />재생성</Button>
-              <Button variant="default" className="rounded-full bg-green-500 px-5 py-2 text-sm md:text-base" size="sm" onClick={onDone}><Check className="h-4 w-4" />완료</Button>
-            </div>
+            {onRegenerate || onDone ? (
+              <div className="mt-4 flex justify-end gap-2">
+                {onRegenerate ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onRegenerate}
+                    className="px-4 py-2 text-sm md:text-base"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    재생성
+                  </Button>
+                ) : null}
+                {onDone ? (
+                  <Button
+                    variant="default"
+                    className="rounded-full bg-green-500 px-5 py-2 text-sm md:text-base"
+                    size="sm"
+                    onClick={onDone}
+                  >
+                    <Check className="h-4 w-4" />
+                    완료
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
           </>
         )}
       </AccordionContent>
@@ -96,5 +122,4 @@ export function ProjectVideoSelect(props: ProjectVideoSelectProps) {
 }
 
 export default ProjectVideoSelect;
-
 

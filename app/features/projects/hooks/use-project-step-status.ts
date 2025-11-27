@@ -1,15 +1,22 @@
 /**
  * 프로젝트 단계 상태 폴링 훅
- * 
+ *
  * 프로젝트 ID를 기반으로 단계별 상태를 주기적으로 조회하고,
  * UI의 loading/done 상태와 동기화합니다.
  */
 
 import * as React from "react";
 import { useFetcher } from "react-router";
-import { getProjectSteps } from "../queries";
+import { browserClient } from "~/lib/supa-client";
 
-export type ProjectStepKey = "brief" | "script" | "narration" | "images" | "videos" | "final" | "distribution";
+export type ProjectStepKey =
+  | "brief"
+  | "script"
+  | "narration"
+  | "images"
+  | "videos"
+  | "final"
+  | "distribution";
 export type ProjectStepStatus = "pending" | "in_progress" | "blocked" | "completed";
 
 export type ProjectStep = {
@@ -28,104 +35,163 @@ export type ProjectStep = {
 
 export type StepStatusMap = Record<ProjectStepKey, ProjectStepStatus>;
 
-/**
- * 프로젝트 단계 상태를 폴링하는 훅
- * @param projectId - 프로젝트의 UUID (project_id 필드)
- * @param options - 폴링 옵션
- * @returns 단계 상태 맵과 로딩 상태
- */
+type UseProjectStepStatusOptions = {
+  enabled?: boolean;
+  interval?: number;
+  onStatusChange?: (steps: StepStatusMap) => void;
+  projectSerialId?: number | null;
+  initialSteps?: Array<{ key: string; status: string }>;
+};
+
+const defaultStepMap: StepStatusMap = {
+  brief: "pending",
+  script: "pending",
+  narration: "pending",
+  images: "pending",
+  videos: "pending",
+  final: "pending",
+  distribution: "pending",
+};
+
+function buildStatusMap(
+  seed?: Array<{ key: string; status: string }>
+): StepStatusMap {
+  const next: StepStatusMap = { ...defaultStepMap };
+  if (seed) {
+    seed.forEach((step) => {
+      const key = step.key as ProjectStepKey;
+      if (key in next) {
+        next[key] = step.status as ProjectStepStatus;
+      }
+    });
+  }
+  return next;
+}
+
 export function useProjectStepStatus(
   projectId: string | undefined,
-  options: {
-    enabled?: boolean;
-    interval?: number; // 폴링 간격 (ms), 기본값 3000
-    onStatusChange?: (steps: StepStatusMap) => void;
-  } = {}
+  options: UseProjectStepStatusOptions = {}
 ) {
-  const { enabled = true, interval = 3000, onStatusChange } = options;
-  const [stepStatusMap, setStepStatusMap] = React.useState<StepStatusMap>({
-    brief: "pending",
-    script: "pending",
-    narration: "pending",
-    images: "pending",
-    videos: "pending",
-    final: "pending",
-    distribution: "pending",
-  });
+  const {
+    enabled = true,
+    interval = 3000,
+    onStatusChange,
+    projectSerialId,
+    initialSteps,
+  } = options;
+
+  const [stepStatusMap, setStepStatusMap] = React.useState<StepStatusMap>(() =>
+    buildStatusMap(initialSteps)
+  );
   const [isLoading, setIsLoading] = React.useState(false);
   const fetcher = useFetcher();
 
-  // 프로젝트 단계 상태 조회
+  const initialSignatureRef = React.useRef<string>("");
+  React.useEffect(() => {
+    if (!initialSteps) {
+      return;
+    }
+    const signature = initialSteps
+      .map((step) => `${step.key}:${step.status}`)
+      .join("|");
+    if (signature === initialSignatureRef.current) {
+      return;
+    }
+    initialSignatureRef.current = signature;
+    setStepStatusMap((prev) => {
+      const next = { ...prev };
+      initialSteps.forEach((step) => {
+        const key = step.key as ProjectStepKey;
+        if (key in next) {
+          next[key] = step.status as ProjectStepStatus;
+        }
+      });
+      return next;
+    });
+  }, [initialSteps]);
+
+  const projectSerialIdRef = React.useRef<number | null>(
+    projectSerialId ?? null
+  );
+
+  React.useEffect(() => {
+    if (typeof projectSerialId === "number") {
+      projectSerialIdRef.current = projectSerialId;
+    }
+  }, [projectSerialId]);
+
   const fetchSteps = React.useCallback(async () => {
-    if (!projectId || projectId === "create" || !enabled) {
+    if (!enabled || !projectId || projectId === "create") {
       return;
     }
 
     setIsLoading(true);
     try {
-      const steps = await getProjectSteps(projectId);
-      
-      // 단계별 상태 맵 생성
-      const newStatusMap: StepStatusMap = {
-        brief: "pending",
-        script: "pending",
-        narration: "pending",
-        images: "pending",
-        videos: "pending",
-        final: "pending",
-        distribution: "pending",
-      };
+      let resolvedProjectRowId = projectSerialIdRef.current;
 
-      steps.forEach((step) => {
-        if (step.key in newStatusMap) {
-          newStatusMap[step.key as ProjectStepKey] = step.status as ProjectStepStatus;
+      if (!resolvedProjectRowId) {
+        const { data: projectRow, error: projectError } = await browserClient
+          .from("projects")
+          .select("id")
+          .eq("project_id", projectId)
+          .maybeSingle();
+
+        if (projectError) {
+          throw projectError;
         }
-      });
 
-      setStepStatusMap(newStatusMap);
-      onStatusChange?.(newStatusMap);
+        resolvedProjectRowId = projectRow?.id ?? null;
+        projectSerialIdRef.current = resolvedProjectRowId;
+      }
+
+      if (!resolvedProjectRowId) {
+        throw new Error("프로젝트 정보를 찾을 수 없습니다.");
+      }
+
+      const { data: steps, error: stepsError } = await browserClient
+        .from("project_steps")
+        .select("*")
+        .eq("project_id", resolvedProjectRowId)
+        .order("order", { ascending: true });
+
+      if (stepsError) {
+        throw stepsError;
+      }
+
+      const map = buildStatusMap(steps ?? undefined);
+      setStepStatusMap(map);
+      onStatusChange?.(map);
     } catch (error) {
       console.error("프로젝트 단계 상태 조회 실패:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, enabled, onStatusChange]);
+  }, [enabled, onStatusChange, projectId]);
 
-  // 초기 로드 및 주기적 폴링
   React.useEffect(() => {
     if (!projectId || projectId === "create" || !enabled) {
       return;
     }
 
-    // 즉시 한 번 조회
     fetchSteps();
-
-    // 주기적으로 폴링
-    const pollInterval = setInterval(() => {
-      fetchSteps();
-    }, interval);
-
+    const pollInterval = setInterval(fetchSteps, interval);
     return () => {
       clearInterval(pollInterval);
     };
   }, [projectId, enabled, interval, fetchSteps]);
 
-  // 단계별 loading/done 상태 계산
   const getStepLoading = React.useCallback(
-    (stepKey: ProjectStepKey): boolean => {
-      return stepStatusMap[stepKey] === "in_progress";
-    },
+    (stepKey: ProjectStepKey): boolean =>
+      stepStatusMap[stepKey] === "in_progress",
     [stepStatusMap]
   );
 
   const getStepDone = React.useCallback(
-    (stepKey: ProjectStepKey): boolean => {
-      return stepStatusMap[stepKey] === "completed";
-    },
+    (stepKey: ProjectStepKey): boolean =>
+      stepStatusMap[stepKey] === "completed",
     [stepStatusMap]
   );
 
-  // 단계 상태 업데이트 함수 (action 호출)
   const updateStepStatus = React.useCallback(
     (
       stepKey: ProjectStepKey,
@@ -143,7 +209,6 @@ export function useProjectStepStatus(
         formData.append("metadata", JSON.stringify(metadata));
       }
 
-      // action을 통해 상태 업데이트
       fetcher.submit(formData, {
         method: "post",
         action: `/my/dashboard/project/${projectId}/status`,
@@ -161,4 +226,3 @@ export function useProjectStepStatus(
     refetch: fetchSteps,
   };
 }
-
