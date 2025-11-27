@@ -272,17 +272,56 @@ export default function ProjectListPage() {
               project.status
             );
 
+            const rawMetadata =
+              (project.metadata as Record<string, unknown> | null | undefined) ??
+              undefined;
+            const extractedDescription =
+              project.description ||
+              (typeof rawMetadata?.summary === "string"
+                ? rawMetadata.summary
+                : typeof rawMetadata?.description === "string"
+                  ? rawMetadata.description
+                  : undefined);
+
+            const likesValue =
+              typeof project.likes === "number"
+                ? project.likes
+                : typeof project.like_count === "number"
+                  ? project.like_count
+                  : 0;
+
+            const ctrSource =
+              typeof project.ctr === "number"
+                ? project.ctr
+                : typeof project.click_through_rate === "number"
+                  ? project.click_through_rate
+                  : null;
+
+            const budgetSource =
+              typeof project.budget === "number"
+                ? project.budget
+                : typeof project.estimated_budget === "number"
+                  ? project.estimated_budget
+                  : null;
+
             return (
               <ProjectCard
                 key={project.project_id}
                 id={project.project_id}
                 to={projectRoute}
                 title={project.title}
-                description={project.description || undefined}
-                likes={formatNumber(project.likes)}
-                ctr={formatCTR(project.ctr)}
-                budget={formatBudget(project.budget)}
-                thumbnail={project.thumbnail || undefined}
+                description={extractedDescription}
+                likes={formatNumber(likesValue)}
+                ctr={formatCTR(ctrSource ?? undefined)}
+                budget={formatBudget(budgetSource ?? undefined)}
+                thumbnail={
+                  project.thumbnail ||
+                  project.cover_image ||
+                  project.video_url ||
+                  undefined
+                }
+                videoUrl={project.video_url || undefined}
+                tiktokUrl={project.tiktok_url || undefined}
                 status={project.status || undefined}
               />
             );

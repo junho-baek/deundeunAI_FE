@@ -8,8 +8,10 @@ import { z } from "zod";
 import { makeSSRClient } from "~/lib/supa-client";
 import { getLoggedInUserId } from "~/features/users/queries";
 import { updateProjectStep } from "../mutations";
-import { triggerProjectStepStartWebhook } from "~/lib/n8n-webhook";
+import { triggerShortWorkflowStepFourWebhook } from "~/lib/n8n-webhook";
 import { getProjectWorkspaceData, saveStepData } from "../queries";
+import { getShortWorkflowJobsByProject } from "../short-workflow";
+import type { ShortWorkflowJobRecord } from "../short-workflow";
 
 const formSchema = z.object({
   imageIds: z
@@ -54,8 +56,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const selectedImageIds = validatedData.imageIds;
 
-    // 현재 워크스페이스 데이터에서 이미지 자산 가져오기
+    // 워크스페이스 데이터 조회
     const workspaceData = await getProjectWorkspaceData(client, projectId);
+    const projectRowId = workspaceData?.project?.id;
+    
+    if (!projectRowId) {
+      return data(
+        { error: "프로젝트 정보를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+
     const imageAssets =
       workspaceData?.mediaAssets?.filter((asset) => asset.type === "image") ||
       [];
@@ -90,24 +101,38 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
     }
 
-    // images 단계를 completed로 변경
+    // 기획서 완료 시 선택된 job 찾기 (status가 wait가 아닌 job)
+    const { getLoggedInProfileId } = await import("~/features/users/queries");
+    const ownerProfileId = await getLoggedInProfileId(client);
+    const shortWorkflowJobs = await getShortWorkflowJobsByProject(client, {
+      projectRowId,
+      ownerProfileId,
+      limit: 5,
+    });
+    const selectedJob = shortWorkflowJobs.find(
+      (job) => job.status !== "wait"
+    ) as ShortWorkflowJobRecord | undefined;
+
+    // DB 업데이트 먼저 (트랜잭션 순서 개선)
     await updateProjectStep(client, projectId, "images", "completed", {
       selected_image_ids: selectedImageIds,
     });
-
-    // videos 단계를 in_progress로 시작
     await updateProjectStep(client, projectId, "videos", "in_progress");
 
-    // n8n 웹훅 호출 (영상 생성 시작)
-    await triggerProjectStepStartWebhook({
-      project_id: projectId,
-      step_key: "videos",
-      step_status: "in_progress",
-      started_at: new Date().toISOString(),
-      metadata: {
-        selected_image_ids: selectedImageIds,
-      },
-    });
+    // 웹훅 호출 (마지막에, 실패해도 DB는 이미 업데이트됨)
+    if (selectedJob) {
+      try {
+        await triggerShortWorkflowStepFourWebhook(selectedJob);
+        console.log("✅ n8n step4 웹훅 호출 완료");
+      } catch (error) {
+        console.error("❌ n8n step4 웹훅 호출 실패:", error);
+      }
+    } else {
+      console.warn(
+        "⚠️ [images-submit] status가 'wait'가 아닌 job을 찾을 수 없어 step4 웹훅을 호출하지 않습니다.",
+        { jobsCount: shortWorkflowJobs.length, jobs: shortWorkflowJobs.map(j => ({ id: j.id, status: j.status })) }
+      );
+    }
 
     return data({ success: true, message: "이미지가 제출되었습니다." });
   } catch (error) {

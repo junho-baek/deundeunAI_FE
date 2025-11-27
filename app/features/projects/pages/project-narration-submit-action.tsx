@@ -7,8 +7,10 @@ import { type ActionFunctionArgs, data } from "react-router";
 import { makeSSRClient } from "~/lib/supa-client";
 import { getLoggedInUserId } from "~/features/users/queries";
 import { updateProjectStep } from "../mutations";
-import { triggerProjectStepStartWebhook } from "~/lib/n8n-webhook";
+import { triggerShortWorkflowStepThreeWebhook } from "~/lib/n8n-webhook";
 import { getProjectWorkspaceData, getProjectSteps, saveStepData } from "../queries";
+import { getShortWorkflowJobsByProject } from "../short-workflow";
+import type { ShortWorkflowJobRecord } from "../short-workflow";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   if (request.method !== "POST") {
@@ -35,11 +37,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
     }
 
-    // 현재 워크스페이스 데이터에서 나레이션 오디오 세그먼트 가져오기
+    // 워크스페이스 데이터 조회 (한 번만)
     const workspaceData = await getProjectWorkspaceData(client, projectId);
-    const audioSegments = workspaceData?.audioSegments || [];
+    const projectRowId = workspaceData?.project?.id;
+    
+    if (!projectRowId) {
+      return data(
+        { error: "프로젝트 정보를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
 
-    // 나레이션 데이터를 DB에 저장
+    // 나레이션 데이터 저장
+    const audioSegments = workspaceData?.audioSegments || [];
     if (audioSegments.length > 0) {
       await saveStepData(client, {
         projectId,
@@ -55,19 +65,37 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
     }
 
-    // narration 단계를 completed로 변경
-    await updateProjectStep(client, projectId, "narration", "completed");
+    // 기획서 완료 시 선택된 job 찾기 (status가 wait가 아닌 job)
+    const { getLoggedInProfileId } = await import("~/features/users/queries");
+    const ownerProfileId = await getLoggedInProfileId(client);
+    const shortWorkflowJobs = await getShortWorkflowJobsByProject(client, {
+      projectRowId,
+      ownerProfileId,
+      limit: 5,
+    });
+    const selectedJob = shortWorkflowJobs.find(
+      (job) => job.status !== "wait"
+    ) as ShortWorkflowJobRecord | undefined;
 
-    // images 단계를 in_progress로 시작
+    // DB 업데이트 먼저 (트랜잭션 순서 개선)
+    await updateProjectStep(client, projectId, "narration", "completed");
     await updateProjectStep(client, projectId, "images", "in_progress");
 
-    // n8n 웹훅 호출 (이미지 생성 시작)
-    await triggerProjectStepStartWebhook({
-      project_id: projectId,
-      step_key: "images",
-      step_status: "in_progress",
-      started_at: new Date().toISOString(),
-    });
+    // 웹훅 호출 (마지막에, 실패해도 DB는 이미 업데이트됨)
+    if (selectedJob) {
+      try {
+        await triggerShortWorkflowStepThreeWebhook(selectedJob);
+        console.log("✅ n8n step3 웹훅 호출 완료");
+      } catch (error) {
+        console.error("❌ n8n step3 웹훅 호출 실패:", error);
+        // 웹훅 실패해도 나레이션 제출은 계속 진행
+      }
+    } else {
+      console.warn(
+        "⚠️ [narration-submit] status가 'wait'가 아닌 job을 찾을 수 없어 step3 웹훅을 호출하지 않습니다.",
+        { jobsCount: shortWorkflowJobs.length, jobs: shortWorkflowJobs.map(j => ({ id: j.id, status: j.status })) }
+      );
+    }
 
     return data({ success: true, message: "대사가 제출되었습니다." });
   } catch (error) {

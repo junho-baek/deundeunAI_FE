@@ -21,6 +21,9 @@ export type ProjectImageEntry = {
   src: string | null;
   status: string;
   label?: string | null;
+  sourceText?: string | null;
+  imagePrompt?: string | null;
+  moviePrompt?: string | null;
 };
 
 export type ProjectImageSelectProps = {
@@ -127,6 +130,36 @@ export function ProjectImageSelect({
                     >
                       {timelineLabel}
                     </Typography>
+                    {entry.sourceText ||
+                    entry.imagePrompt ||
+                    entry.moviePrompt ? (
+                      <div className="text-xs text-muted-foreground/90 space-y-1 rounded-lg border border-dashed border-muted/50 p-2">
+                        {entry.sourceText ? (
+                          <p>
+                            <span className="font-medium text-foreground">
+                              Source
+                            </span>{" "}
+                            {entry.sourceText}
+                          </p>
+                        ) : null}
+                        {entry.imagePrompt ? (
+                          <p>
+                            <span className="font-medium text-foreground">
+                              Prompt
+                            </span>{" "}
+                            {entry.imagePrompt}
+                          </p>
+                        ) : null}
+                        {entry.moviePrompt ? (
+                          <p>
+                            <span className="font-medium text-foreground">
+                              Motion
+                            </span>{" "}
+                            {entry.moviePrompt}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}

@@ -38,7 +38,10 @@ import {
 } from "~/features/projects/queries";
 import { getProfileSlug } from "~/features/users/queries";
 import { makeSSRClient } from "~/lib/supa-client";
-import { useProjectStepStatus } from "../hooks/use-project-step-status";
+import {
+  useProjectStepStatus,
+  type ProjectStepKey,
+} from "../hooks/use-project-step-status";
 
 type MessageAttachment = { name: string; size?: number };
 type Message = {
@@ -71,6 +74,54 @@ type DoneState = LoadingState;
 
 type NarrationSegment = { id: number; label: string; src: string };
 
+const DEFAULT_STEP_ACKS: Record<ProjectStepKey, boolean> = {
+  brief: false,
+  script: false,
+  narration: false,
+  images: false,
+  videos: false,
+  final: false,
+  distribution: false,
+};
+
+function createInitialAckState() {
+  return { ...DEFAULT_STEP_ACKS };
+}
+
+function useProjectReadySignal(
+  projectId: string | undefined,
+  eventName: string,
+  storeKey: string
+) {
+  const [ready, setReady] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId: string }>).detail;
+      if (detail?.projectId === projectId) {
+        setReady(true);
+      }
+    };
+    window.addEventListener(eventName, handler as EventListener);
+    return () => {
+      window.removeEventListener(eventName, handler as EventListener);
+    };
+  }, [eventName, projectId]);
+
+  React.useEffect(() => {
+    setReady(false);
+    if (typeof window === "undefined") return;
+    const readySet =
+      ((window as any)[storeKey] as Set<string> | undefined) ?? new Set<string>();
+    if (projectId && readySet.has(projectId)) {
+      setReady(true);
+    }
+  }, [projectId, storeKey]);
+
+  return ready;
+}
+
 export type ProjectDetailContextValue = {
   projectId?: string;
   messages: Message[];
@@ -94,6 +145,8 @@ export type ProjectDetailContextValue = {
     rechargeUrl?: string;
   };
   isSubmitting?: boolean;
+  acknowledgedSteps: Record<ProjectStepKey, boolean>;
+  acknowledgeStep: (step: ProjectStepKey) => void;
 };
 
 const ProjectDetailContext =
@@ -266,6 +319,21 @@ function useProjectDetailState(
     }
     return [];
   }, [savedMessages]);
+
+  const [acknowledgedSteps, setAcknowledgedSteps] = React.useState<
+    Record<ProjectStepKey, boolean>
+  >(createInitialAckState);
+
+  React.useEffect(() => {
+    setAcknowledgedSteps(createInitialAckState());
+  }, [projectId]);
+
+  const acknowledgeStep = React.useCallback((stepKey: ProjectStepKey) => {
+    setAcknowledgedSteps((prev) => {
+      if (prev[stepKey]) return prev;
+      return { ...prev, [stepKey]: true };
+    });
+  }, []);
 
   // 저장된 메시지가 있으면 우선 사용, 없으면 초기 채팅 페이로드 사용
   const initialMessages = React.useMemo(
@@ -538,6 +606,8 @@ function useProjectDetailState(
       narrationSegments,
       actionData,
       isSubmitting,
+      acknowledgedSteps,
+      acknowledgeStep,
     }),
     [
       done,
@@ -554,6 +624,8 @@ function useProjectDetailState(
       videoTimelines,
       actionData,
       isSubmitting,
+      acknowledgedSteps,
+      acknowledgeStep,
     ]
   );
 }
@@ -564,11 +636,9 @@ export function useProjectDetail() {
   if (context) {
     return context;
   }
-  if (process.env.NODE_ENV !== "production") {
-    console.warn(
-      "useProjectDetail 훅이 ProjectDetailLayout 외부에서 호출되었습니다. 독립 상태로 동작합니다."
-    );
-  }
+  // Context가 없으면 fallback 상태로 동작 (경고 제거 - 정상적인 경우일 수 있음)
+  // project-workspace-page.tsx는 ProjectDetailLayout의 children으로 렌더링되므로
+  // 일반적으로는 Context가 있지만, 초기 렌더링 시점에 없을 수 있음
   return fallbackState;
 }
 
@@ -685,7 +755,13 @@ export default function ProjectDetailLayout({
 
 function AgentConversationMock() {
   const projectDetail = useProjectDetail();
-  const { messages, loading, done } = projectDetail;
+  const {
+    messages,
+    loading,
+    done,
+    acknowledgedSteps,
+    acknowledgeStep,
+  } = projectDetail;
   const agentProjectId = projectDetail.projectId;
   const formSubmitFetcher = useFetcher();
   const referenceSubmitFetcher = useFetcher();
@@ -724,40 +800,21 @@ function AgentConversationMock() {
     referenceSubmitFetcher.state === "submitting" ||
     Boolean(referenceActionData?.success);
 
-  const [shortWorkflowReady, setShortWorkflowReady] = React.useState(false);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const handler = (event: Event) => {
-      const detail = (event as CustomEvent<{ projectId: string }>).detail;
-      if (detail?.projectId === agentProjectId) {
-        setShortWorkflowReady(true);
-      }
-    };
-    window.addEventListener(
-      "project:short-workflow-ready",
-      handler as EventListener
-    );
-    return () => {
-      window.removeEventListener(
-        "project:short-workflow-ready",
-        handler as EventListener
-      );
-    };
-  }, [agentProjectId]);
-
-  React.useEffect(() => {
-    setShortWorkflowReady(false);
-    if (typeof window !== "undefined") {
-      const readySet =
-        ((window as any).__shortWorkflowReadyProjects as
-          | Set<string>
-          | undefined) ?? new Set<string>();
-      if (agentProjectId && readySet.has(agentProjectId)) {
-        setShortWorkflowReady(true);
-      }
-    }
-  }, [agentProjectId]);
+  const shortWorkflowReady = useProjectReadySignal(
+    agentProjectId,
+    "project:short-workflow-ready",
+    "__shortWorkflowReadyProjects"
+  );
+  const scriptReady = useProjectReadySignal(
+    agentProjectId,
+    "project:script-ready",
+    "__projectScriptReadyProjects"
+  );
+  const narrationReady = useProjectReadySignal(
+    agentProjectId,
+    "project:narration-ready",
+    "__projectNarrationReadyProjects"
+  );
 
   const handleFormSubmit = React.useCallback(
     async (values: Record<string, string[]>) => {
@@ -836,7 +893,9 @@ function AgentConversationMock() {
     shortWorkflowReady &&
     hasSubmittedReference &&
     hasSubmittedForm &&
-    !done.brief;
+    !done.brief &&
+    !acknowledgedSteps.brief &&
+    !loading.brief; // 기획서 생성 중이면 HITL 카드 숨기기
 
   const emitWorkspaceEvent = React.useCallback(
     (type: string) => {
@@ -853,26 +912,54 @@ function AgentConversationMock() {
   }, [emitWorkspaceEvent]);
 
   const handleBriefSubmitFromChat = React.useCallback(() => {
+    acknowledgeStep("brief");
     emitWorkspaceEvent("project:brief-submit");
+  }, [emitWorkspaceEvent, acknowledgeStep]);
+
+  const handleScriptEditFromChat = React.useCallback(() => {
+    emitWorkspaceEvent("project:script-edit");
   }, [emitWorkspaceEvent]);
+
+  const handleScriptSubmitFromChat = React.useCallback(() => {
+    acknowledgeStep("script");
+    emitWorkspaceEvent("project:script-submit");
+  }, [emitWorkspaceEvent, acknowledgeStep]);
+
+  const handleNarrationRegenerateFromChat = React.useCallback(() => {
+    emitWorkspaceEvent("project:narration-regenerate");
+  }, [emitWorkspaceEvent]);
+
+  const handleNarrationSubmitFromChat = React.useCallback(() => {
+    acknowledgeStep("narration");
+    emitWorkspaceEvent("project:narration-submit");
+  }, [emitWorkspaceEvent, acknowledgeStep]);
 
   const shouldShowReferenceForm =
     hasProjectStarted && !hasSubmittedReference && !!agentProjectId;
 
   const showReferencePlaceholder =
     referenceSubmitFetcher.state === "submitting";
-  // 기획서 작성 중
-  const showBriefGenerating = loading.brief;
+  // 기획서 작성 중 (shortWorkflowReady가 false이거나 loading 상태일 때)
+  const showBriefGenerating =
+    (loading.brief || !shortWorkflowReady) && !done.brief && hasSubmittedForm;
   // 기획서 완료
-  const showBriefDone = done.brief && !done.script;
+  const showBriefDone = done.brief && acknowledgedSteps.brief && !done.script;
   // 대본 작성 중
-  const showScriptGenerating = loading.script;
+  const showScriptGenerating =
+    loading.script && !scriptReady && !acknowledgedSteps.script;
+  const showScriptActionCard =
+    scriptReady && !acknowledgedSteps.script && !done.script;
   // 대본 완료
-  const showScriptDone = done.script && !done.narration;
+  const showScriptDone =
+    done.script && acknowledgedSteps.script && !done.narration;
   // 나레이션 생성 중
-  const showNarrationGenerating = loading.narration;
+  const showNarrationGenerating =
+    loading.narration && !narrationReady && !acknowledgedSteps.narration;
+  const showNarrationActionCard =
+    narrationReady && !acknowledgedSteps.narration && !done.narration;
   // 나레이션 완료
-  const showNarrationDone = done.narration && !done.images;
+  const showNarrationDone =
+    done.narration && acknowledgedSteps.narration && !done.images;
   // 이미지 생성 중
   const showImagesGenerating = loading.images;
   // 이미지 완료
@@ -893,11 +980,14 @@ function AgentConversationMock() {
             isFormResponse?: boolean;
             formData?: Record<string, string[]>;
           };
+          // 사용자 폼 응답 메시지는 표시하지 않음 (AI가 자동 처리)
           const isUserFormResponse =
             message.role === "user" && metadata.isFormResponse;
-          const displayMessage = isUserFormResponse
-            ? "폼 응답이 제출되었습니다."
-            : message.content;
+          // 사용자 폼 응답 메시지는 건너뛰기
+          if (isUserFormResponse) {
+            return null;
+          }
+          const displayMessage = message.content;
 
           const renderFormChips = () => {
             if (!metadata.formData) return null;
@@ -914,7 +1004,7 @@ function AgentConversationMock() {
               }
             };
             return (
-              <div className="flex flex-col gap-2 text-xs text-muted-foreground">
+              <div className="mt-2 flex flex-col gap-2 text-xs text-muted-foreground">
                 {entries.map(([field, values]) => (
                   <div key={field}>
                     <span className="text-foreground font-medium">
@@ -938,8 +1028,11 @@ function AgentConversationMock() {
 
           const shouldShowMetaDetails =
             message.role === "user" &&
-            !isUserFormResponse &&
             (message.aspectRatio || (message.attachments?.length ?? 0) > 0);
+
+          // assistant 메시지에서 폼 데이터 표시
+          const shouldShowFormChips =
+            message.role === "assistant" && metadata.isFormResponse && metadata.formData;
 
           return (
             <ChatBox
@@ -950,7 +1043,7 @@ function AgentConversationMock() {
               stackBelowAvatar={message.role === "agent"}
               childrenFullWidth
             >
-              {isUserFormResponse
+              {shouldShowFormChips
                 ? renderFormChips()
                 : shouldShowMetaDetails && (
                     <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -1122,6 +1215,25 @@ function AgentConversationMock() {
         />
       )}
 
+      {showScriptActionCard && (
+        <ChatBox
+          role="agent"
+          avatarSrc="/agent.png"
+          stackBelowAvatar
+          childrenFullWidth
+        >
+          <ChatConfirmCard
+            message="대본 작성이 완료되었어요! 작업공간에서 문단을 검토한 뒤 수정하거나 '확인했어요'를 눌러주세요."
+            primaryActionLabel="수정"
+            onPrimaryAction={handleScriptEditFromChat}
+            secondaryActionLabel="확인했어요"
+            onSecondaryAction={handleScriptSubmitFromChat}
+            showSecondary
+            attention="pulse"
+          />
+        </ChatBox>
+      )}
+
       {/* 대본 완료 */}
       {showScriptDone && (
         <ChatBox
@@ -1150,6 +1262,25 @@ function AgentConversationMock() {
           stackBelowAvatar
           childrenFullWidth
         />
+      )}
+
+      {showNarrationActionCard && (
+        <ChatBox
+          role="agent"
+          avatarSrc="/agent.png"
+          stackBelowAvatar
+          childrenFullWidth
+        >
+          <ChatConfirmCard
+            message="나레이션이 도착했습니다. 들어보고 필요하면 다시 생성하거나 확정해 주세요."
+            primaryActionLabel="다시 만들래요"
+            onPrimaryAction={handleNarrationRegenerateFromChat}
+            secondaryActionLabel="확인했어요"
+            onSecondaryAction={handleNarrationSubmitFromChat}
+            showSecondary
+            attention="pulse"
+          />
+        </ChatBox>
       )}
 
       {/* 나레이션 완료 */}

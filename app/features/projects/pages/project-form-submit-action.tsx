@@ -94,24 +94,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
       })
       .eq("id", project.id);
 
-    await saveProjectMessage(client, {
-      projectId,
-      role: "user",
-      content: `폼 응답:\n${formDataStr}`,
-      stepKey: "brief",
-      metadata: {
-        formData: formDataObj,
-        isFormResponse: true,
-      },
-    });
+    // 사용자 메시지는 저장하지 않음 (AI가 자동으로 처리)
+    // 폼 데이터는 metadata에 저장되어 있으므로 별도 메시지 불필요
 
     await saveProjectMessage(client, {
       projectId,
       role: "assistant",
-      content: "폼 응답을 확인했습니다. 기획서 작성을 시작하겠습니다.",
+      content: "입력해 주신 정보를 확인했습니다. 기획서 작성을 시작하겠습니다.",
       stepKey: "brief",
       metadata: {
         isFormResponse: true,
+        formData: formDataObj, // 폼 데이터를 assistant 메시지에 포함
       },
     });
 
@@ -121,23 +114,29 @@ export async function action({ request, params }: ActionFunctionArgs) {
     });
 
     if (!workflowStartedAt) {
-      triggerProjectStartWebhook({
-        project_id: project.project_id,
-        project_title: project.title,
-        owner_profile_id: project.owner_profile_id,
-        status: project.status,
-        created_at: project.created_at,
-        metadata: {
-          ...updatedMetadata,
-          formData: formDataObj,
-        },
-        shortWorkflowKeyword,
-      }).catch((error) => {
+      try {
+        await triggerProjectStartWebhook({
+          project_id: project.project_id,
+          project_title: project.title,
+          owner_profile_id: project.owner_profile_id,
+          status: project.status,
+          created_at: project.created_at,
+          metadata: {
+            ...updatedMetadata,
+            formData: formDataObj,
+          },
+          shortWorkflowKeyword,
+        });
+        console.log("n8n 프로젝트 시작 웹훅 호출 완료");
+      } catch (error) {
         console.error(
           "n8n 프로젝트 시작 웹훅 호출 실패 (폼 제출은 유지):",
           error
         );
-      });
+        // 웹훅 실패해도 폼 제출은 성공으로 처리
+      }
+    } else {
+      console.log("워크플로우가 이미 시작되어 웹훅 호출을 건너뜁니다.");
     }
 
     return data({ success: true, message: "폼이 제출되었습니다." });

@@ -3,7 +3,11 @@ import { Button } from "~/common/components/ui/button";
 import { Check, Edit3 } from "lucide-react";
 import { Skeleton } from "~/common/components/ui/skeleton";
 import { Spinner } from "~/common/components/ui/spinner";
-import { AccordionItem, AccordionTrigger, AccordionContent } from "./project-accordion";
+import {
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "./project-accordion";
 import { Typography } from "~/common/components/typography";
 
 function StepStatus({ loading, done }: { loading?: boolean; done?: boolean }) {
@@ -26,7 +30,18 @@ export type ProjectVideoSelectProps = {
 };
 
 export function ProjectVideoSelect(props: ProjectVideoSelectProps) {
-  const { value, title, sources, timelines, selected, onToggle, onRegenerate, onDone, loading, done } = props;
+  const {
+    value,
+    title,
+    sources,
+    timelines,
+    selected,
+    onToggle,
+    onRegenerate,
+    onDone,
+    loading,
+    done,
+  } = props;
   return (
     <AccordionItem value={value}>
       <AccordionTrigger className="text-base font-semibold leading-tight md:text-lg">
@@ -61,29 +76,39 @@ export function ProjectVideoSelect(props: ProjectVideoSelectProps) {
                 const canToggle = Boolean(onToggle);
                 return (
                   <div key={i} className="space-y-1">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        canToggle ? onToggle?.(i + 1) : undefined
-                      }
-                      className="group relative aspect-9/16 w-full overflow-hidden rounded-xl border bg-muted shadow-sm transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-70"
-                      disabled={!canToggle}
-                      aria-pressed={isSelected}
-                    >
-                      <video className="absolute inset-0 h-full w-full object-cover" muted loop playsInline preload="metadata">
+                    <div className="relative aspect-9/16 w-full overflow-hidden rounded-xl border bg-muted shadow-sm">
+                      <video
+                        className="h-full w-full object-cover"
+                        controls
+                        playsInline
+                        preload="metadata"
+                      >
                         <source src={src} type="video/mp4" />
                       </video>
-                      <span className={"absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full border-2 text-sm font-semibold transition " + (isSelected ? "border-primary bg-primary text-primary-foreground" : "border-white/80 bg-background/80 text-transparent group-hover:text-white/80")} aria-hidden="true">
-                        <Check className="h-4 w-4" />
-                      </span>
-                    </button>
-                    <Typography
-                      as="div"
-                      variant="muted"
-                      className="text-center text-sm leading-relaxed text-muted-foreground"
-                    >
-                      {timelines[i]}
-                    </Typography>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      {canToggle ? (
+                        <button
+                          type="button"
+                          onClick={() => onToggle?.(i + 1)}
+                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs font-semibold transition ${
+                            isSelected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-muted-foreground/30 bg-background text-muted-foreground hover:border-primary/50"
+                          }`}
+                          aria-pressed={isSelected}
+                        >
+                          {isSelected && <Check className="h-3 w-3" />}
+                        </button>
+                      ) : null}
+                      <Typography
+                        as="div"
+                        variant="muted"
+                        className="text-center text-sm leading-relaxed text-muted-foreground"
+                      >
+                        {timelines[i]}
+                      </Typography>
+                    </div>
                   </div>
                 );
               })}
@@ -122,4 +147,3 @@ export function ProjectVideoSelect(props: ProjectVideoSelectProps) {
 }
 
 export default ProjectVideoSelect;
-

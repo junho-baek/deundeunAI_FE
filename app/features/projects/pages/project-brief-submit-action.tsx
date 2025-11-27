@@ -156,12 +156,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
 
-    triggerShortWorkflowStepTwoWebhook(reservedJob as ShortWorkflowJobRecord).catch(
-      (error) => {
-        console.error("n8n step2 웹훅 호출 실패:", error);
-      }
-    );
-
+    // DB 업데이트 먼저 (트랜잭션 순서 개선)
     await saveStepData(client, {
       projectId,
       stepKey: "brief",
@@ -170,12 +165,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
         metadata: metadataPayload,
       },
     });
-
-    // brief 단계를 completed로 변경
     await updateProjectStep(client, projectId, "brief", "completed");
+    await updateProjectStep(client, projectId, "narration", "in_progress");
 
-    // script 단계를 in_progress로 시작
-    await updateProjectStep(client, projectId, "script", "in_progress");
+    // 웹훅 호출 (마지막에, 실패해도 DB는 이미 업데이트됨)
+    try {
+      await triggerShortWorkflowStepTwoWebhook(reservedJob as ShortWorkflowJobRecord);
+    } catch (error) {
+      console.error("n8n step2 웹훅 호출 실패:", error);
+    }
 
     return data({ success: true, message: "기획서가 제출되었습니다." });
   } catch (error) {

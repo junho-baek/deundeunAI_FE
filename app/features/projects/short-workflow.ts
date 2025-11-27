@@ -62,6 +62,23 @@ export type ShortWorkflowImageRecord = {
   updated_at: string;
 };
 
+export type ShortWorkflowCompletionRecord = {
+  id: number;
+  pid: string;
+  render_id: string | null;
+  duration: string | null;
+  render_status: string | null;
+  render_url: string | null;
+  youtube_url: string | null;
+  title: string | null;
+  description: string | null;
+  tags: string | null;
+  project_id: number | null;
+  owner_profile_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type UpsertKeywordPayload = {
   projectRowId: number;
   ownerProfileId: string;
@@ -223,4 +240,32 @@ export async function getShortWorkflowImagesByProject(
   }
 
   return (data ?? []) as ShortWorkflowImageRecord[];
+}
+
+export async function getShortWorkflowCompletionsByProject(
+  client: SupabaseClient<Database>,
+  {
+    projectRowId,
+    ownerProfileId,
+    limit = 1,
+  }: {
+    projectRowId: number;
+    ownerProfileId: string;
+    limit?: number;
+  }
+): Promise<ShortWorkflowCompletionRecord[]> {
+  const { data, error } = await client
+    .from("short_workflow_completions")
+    .select("*")
+    .eq("project_id", projectRowId)
+    .eq("owner_profile_id", ownerProfileId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("short_workflow_completions 조회 실패:", error);
+    throw error;
+  }
+
+  return (data ?? []) as ShortWorkflowCompletionRecord[];
 }

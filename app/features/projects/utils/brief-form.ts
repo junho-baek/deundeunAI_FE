@@ -7,6 +7,7 @@ import type { ShortWorkflowJobRecord } from "../short-workflow";
 export type ProjectBriefFormValues = {
   title: string;
   keyword: string;
+  status: string;
   category: string;
   imageModel: string;
   tags: string;
@@ -20,6 +21,7 @@ export type ProjectBriefFormValues = {
 export const emptyProjectBriefFormValues: ProjectBriefFormValues = {
   title: "",
   keyword: "",
+  status: "",
   category: "",
   imageModel: "",
   tags: "",
@@ -36,6 +38,7 @@ export function sanitizeBriefFormValues(
   return {
     title: values?.title?.trim() || "",
     keyword: values?.keyword?.trim() || "",
+    status: values?.status?.trim() || "",
     category:
       values?.category && SHORT_WORKFLOW_CATEGORY_OPTIONS.includes(values.category)
         ? values.category
@@ -65,17 +68,19 @@ export function buildBriefMarkdownFromFields(
   const lines: string[] = [];
   const safe = sanitizeBriefFormValues(values);
   lines.push(`# ${safe.title || "제목 미정"}`);
-  const metaParts = [
-    `- **키워드:** ${safe.keyword || "미정"}`,
-    `- **카테고리:** ${safe.category || "미정"}`,
-    `- **길이:** ${safe.length ?? "0"}`,
-    `- **태그:** ${safe.tags || "없음"}`,
-    `- **이미지 모델:** ${safe.imageModel || "미정"}`,
-  ];
-  lines.push(metaParts.join("\n"));
   if (safe.description) {
-    lines.push(`- **설명:** ${safe.description}`);
+    lines.push(safe.description);
   }
+  const metaLines: string[] = [];
+  metaLines.push(`- **키워드:** ${safe.keyword || "미정"}`);
+  metaLines.push(`- **상태:** ${safe.status || "대기"}`);
+  if (safe.tags) {
+    metaLines.push(`- **태그:** ${safe.tags}`);
+  }
+  if (safe.length !== null) {
+    metaLines.push(`- **길이:** ${safe.length}`);
+  }
+  lines.push(metaLines.join("\n"));
   if (safe.intro) {
     lines.push(`## Intro\n${safe.intro}`);
   }
@@ -95,6 +100,7 @@ export function deriveBriefFormValuesFromJob(
   return sanitizeBriefFormValues({
     title: job.title,
     keyword: job.keyword || "",
+    status: job.status || "",
     category: job.category || "",
     imageModel: job.image_model || "",
     tags: job.tags || "",
@@ -139,6 +145,7 @@ export function briefFormValuesFromFormData(
   return sanitizeBriefFormValues({
     title: get("title"),
     keyword: get("keyword"),
+    status: get("status"),
     category: get("category"),
     imageModel: get("imageModel"),
     tags: get("tags"),

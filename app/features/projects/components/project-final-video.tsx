@@ -19,14 +19,31 @@ export type ProjectFinalVideoProps = {
   headline: string;
   description: string;
   durationText: string;
+  youtubeUrl?: string;
   loading?: boolean;
   done?: boolean;
   onSelect?: () => void;
   onDone?: () => void;
+  onYouTubeClick?: () => void;
 };
 
-export function ProjectFinalVideo({ value, title, videoSrc, headline, description, durationText, loading, done, onSelect, onDone }: ProjectFinalVideoProps) {
+export function ProjectFinalVideo({ 
+  value, 
+  title, 
+  videoSrc, 
+  headline, 
+  description, 
+  durationText,
+  youtubeUrl,
+  loading, 
+  done, 
+  onSelect, 
+  onDone,
+  onYouTubeClick 
+}: ProjectFinalVideoProps) {
   const showActions = Boolean(onSelect || onDone);
+  const hasVideo = Boolean(videoSrc);
+  
   return (
     <AccordionItem value={value}>
       <AccordionTrigger className="text-base font-semibold leading-tight md:text-lg">
@@ -42,7 +59,7 @@ export function ProjectFinalVideo({ value, title, videoSrc, headline, descriptio
         </span>
       </AccordionTrigger>
       <AccordionContent className="flex flex-col gap-5 px-4 text-base leading-relaxed">
-        {loading ? (
+        {loading || !hasVideo ? (
           <div className="mx-auto w-full max-w-[420px] px-2">
             <div className="space-y-2">
               <div className="relative aspect-9/16 w-full overflow-hidden rounded-xl border bg-muted">
@@ -67,7 +84,7 @@ export function ProjectFinalVideo({ value, title, videoSrc, headline, descriptio
             <div className="mx-auto w-full max-w-[420px] px-2">
               <div className="space-y-2">
                 <div className="relative aspect-9/16 w-full overflow-hidden rounded-xl border bg-muted">
-                  <video className="absolute inset-0 h-full w-full object-cover" controls loop playsInline preload="metadata">
+                  <video className="h-full w-full object-cover" controls playsInline preload="metadata">
                     <source src={videoSrc} type="video/mp4" />
                   </video>
                 </div>
@@ -97,8 +114,28 @@ export function ProjectFinalVideo({ value, title, videoSrc, headline, descriptio
                   </Typography>
                 </div>
                 <div className="mt-1 flex items-center justify-center gap-3">
-                  <button type="button" aria-label="Upload to YouTube" className="inline-flex items-center justify-center rounded-full bg-red-600 text-white h-10 w-10 shadow"><Youtube className="h-5 w-5" /></button>
-                  <button type="button" aria-label="Upload to Instagram" className="inline-flex items-center justify-center rounded-full bg-linear-to-br from-pink-500 to-violet-500 text-white h-10 w-10 shadow"><Instagram className="h-5 w-5" /></button>
+                  {youtubeUrl ? (
+                    <a
+                      href={youtubeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center rounded-full bg-red-600 text-white h-10 w-10 shadow hover:bg-red-700 transition"
+                      aria-label="YouTube 링크 열기"
+                    >
+                      <Youtube className="h-5 w-5" />
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={onYouTubeClick}
+                      disabled={!onYouTubeClick}
+                      aria-label="Upload to YouTube"
+                      className="inline-flex items-center justify-center rounded-full bg-red-600 text-white h-10 w-10 shadow hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Youtube className="h-5 w-5" />
+                    </button>
+                  )}
+                  <button type="button" aria-label="Upload to Instagram" className="inline-flex items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-violet-500 text-white h-10 w-10 shadow"><Instagram className="h-5 w-5" /></button>
                   <button type="button" aria-label="Upload to X" className="inline-flex items-center justify-center rounded-full bg-black text-white h-10 w-10 shadow"><Twitter className="h-5 w-5" /></button>
                 </div>
               </div>

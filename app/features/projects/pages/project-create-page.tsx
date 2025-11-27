@@ -11,10 +11,6 @@ import { generateProjectUUID, getCurrentUserName } from "~/lib/uuid-utils";
 import { createProject, createInitialProjectSteps } from "~/features/projects/mutations";
 import { makeSSRClient } from "~/lib/supa-client";
 import { getLoggedInProfileId } from "~/features/users/queries";
-import {
-  generateMockProjectTitle,
-  generateMockProjectDescription,
-} from "~/features/projects/utils/mock-data";
 import { saveProjectMessages } from "~/features/projects/queries";
 import ProjectDetailLayout from "~/features/projects/layouts/project-detail-layout";
 import ProjectWorkspacePage from "~/features/projects/pages/project-workspace-page";
@@ -145,9 +141,10 @@ export async function action({ request }: ActionFunctionArgs) {
 
   // 프로젝트 생성
   try {
-    // 키워드 기반으로 실감나는 제목과 설명 생성
-    const projectTitle = generateMockProjectTitle(data.keyword);
-    const projectDescription = generateMockProjectDescription(data.keyword);
+    const keywordText = data.keyword.trim();
+    const projectTitle = keywordText || "새 프로젝트";
+    const projectDescription =
+      `콘텐츠 키워드: ${keywordText}`.trim();
 
     const project = await createProject(client, {
       project_id: projectId, // 생성한 UUID 사용

@@ -15,6 +15,7 @@ export type ProjectBriefEditorProps = {
   onCancel: () => void;
   onSave: (values: ProjectBriefFormValues) => Promise<void> | void;
   isSubmitting?: boolean;
+  readOnly?: boolean; // 읽기 전용 모드
 };
 
 export function ProjectBriefEditor({
@@ -22,6 +23,7 @@ export function ProjectBriefEditor({
   onCancel,
   onSave,
   isSubmitting = false,
+  readOnly = false,
 }: ProjectBriefEditorProps) {
   const [formValues, setFormValues] =
     React.useState<ProjectBriefFormValues>(initialValues);
@@ -70,7 +72,8 @@ export function ProjectBriefEditor({
             value={formValues.title}
             onChange={handleTextChange("title")}
             placeholder="콘텐츠 제목"
-            disabled={isSubmitting}
+            disabled={isSubmitting || readOnly}
+            readOnly={readOnly}
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -80,7 +83,8 @@ export function ProjectBriefEditor({
             value={formValues.keyword}
             onChange={handleTextChange("keyword")}
             placeholder="예: 팀워크, 프로젝트"
-            disabled={isSubmitting}
+            disabled={isSubmitting || readOnly}
+            readOnly={readOnly}
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -89,7 +93,7 @@ export function ProjectBriefEditor({
             id="brief-category"
             value={formValues.category}
             onChange={handleSelectChange("category")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || readOnly}
             className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">카테고리를 선택하세요</option>
@@ -106,7 +110,7 @@ export function ProjectBriefEditor({
             id="brief-image-model"
             value={formValues.imageModel}
             onChange={handleSelectChange("imageModel")}
-            disabled={isSubmitting}
+            disabled={isSubmitting || readOnly}
             className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">이미지 모델을 선택하세요</option>
@@ -124,7 +128,8 @@ export function ProjectBriefEditor({
             value={formValues.tags}
             onChange={handleTextChange("tags")}
             placeholder="#프로젝트 #팀워크"
-            disabled={isSubmitting}
+            disabled={isSubmitting || readOnly}
+            readOnly={readOnly}
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -136,7 +141,8 @@ export function ProjectBriefEditor({
             value={formValues.length ?? ""}
             onChange={handleTextChange("length")}
             placeholder="예: 200"
-            disabled={isSubmitting}
+            disabled={isSubmitting || readOnly}
+            readOnly={readOnly}
           />
         </div>
       </div>
@@ -149,7 +155,8 @@ export function ProjectBriefEditor({
           onChange={handleTextChange("description")}
           rows={3}
           placeholder="콘텐츠의 전체 요약을 작성하세요."
-          disabled={isSubmitting}
+          disabled={isSubmitting || readOnly}
+          readOnly={readOnly}
         />
       </div>
 
@@ -161,7 +168,8 @@ export function ProjectBriefEditor({
           onChange={handleTextChange("intro")}
           rows={3}
           placeholder="시작 3초를 책임지는 문장"
-          disabled={isSubmitting}
+          disabled={isSubmitting || readOnly}
+          readOnly={readOnly}
         />
       </div>
 
@@ -173,7 +181,8 @@ export function ProjectBriefEditor({
           onChange={handleTextChange("base")}
           rows={6}
           placeholder="본론 내용을 입력하세요."
-          disabled={isSubmitting}
+          disabled={isSubmitting || readOnly}
+          readOnly={readOnly}
         />
       </div>
 
@@ -185,33 +194,36 @@ export function ProjectBriefEditor({
           onChange={handleTextChange("cta")}
           rows={3}
           placeholder="시청자 행동을 유도하는 문구"
-          disabled={isSubmitting}
+          disabled={isSubmitting || readOnly}
+          readOnly={readOnly}
         />
       </div>
 
-      <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          disabled={isSubmitting}
-          className="px-4 py-2 text-sm md:text-base"
-        >
-          <X className="h-4 w-4" />
-          취소
-        </Button>
-        <Button
-          type="submit"
-          variant="default"
-          size="sm"
-          disabled={isSubmitting}
-          className="px-4 py-2 text-sm md:text-base"
-        >
-          <Save className="h-4 w-4" />
-          {isSubmitting ? "저장 중..." : "저장하기"}
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            disabled={isSubmitting}
+            className="px-4 py-2 text-sm md:text-base"
+          >
+            <X className="h-4 w-4" />
+            취소
+          </Button>
+          <Button
+            type="submit"
+            variant="default"
+            size="sm"
+            disabled={isSubmitting}
+            className="px-4 py-2 text-sm md:text-base"
+          >
+            <Save className="h-4 w-4" />
+            {isSubmitting ? "저장 중..." : "저장하기"}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }
