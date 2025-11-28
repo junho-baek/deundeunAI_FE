@@ -1226,7 +1226,14 @@ export default function ProjectWorkspacePage({
   }, [projectId, selectedVideos, isVideosLocked, videosSubmitFetcher]);
 
   const handleYouTubeUpload = React.useCallback(() => {
-    if (!projectId || isFinalLocked) return;
+    if (!projectId) {
+      console.error("❌ [youtube-upload] projectId가 없습니다.");
+      return;
+    }
+    console.log("👉 [youtube-upload] 유튜브 업로드 요청 시작:", {
+      projectId,
+      action: `/my/dashboard/project/${projectId}/youtube/upload`,
+    });
     youtubeUploadFetcher.submit(
       {},
       {
@@ -1234,7 +1241,7 @@ export default function ProjectWorkspacePage({
         action: `/my/dashboard/project/${projectId}/youtube/upload`,
       }
     );
-  }, [projectId, isFinalLocked, youtubeUploadFetcher]);
+  }, [projectId, youtubeUploadFetcher]);
 
   const handleDeploy = React.useCallback(() => {
     if (!projectId || isFinalLocked) return;
@@ -1455,7 +1462,8 @@ export default function ProjectWorkspacePage({
               loading={optimisticLoading.final && !finalVideoUrl}
               done={optimisticDone.final}
               onDone={canManageFinal ? handleDeploy : undefined}
-              onYouTubeClick={canManageFinal ? handleYouTubeUpload : undefined}
+              onYouTubeClick={handleYouTubeUpload}
+              youtubeUploadPending={youtubeUploadPending}
             />
           )}
         </ProjectAccordion>

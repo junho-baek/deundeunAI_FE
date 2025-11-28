@@ -90,6 +90,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const projectSteps = await getProjectSteps(client, projectId);
     const briefStep = projectSteps.find((step) => step.key === "brief");
     if (briefStep?.status === "completed") {
+      console.log("⚠️ [brief-submit] 기획서가 이미 완료되어 있습니다. 웹훅을 호출하지 않습니다.", {
+        briefStatus: briefStep.status,
+        narrationStatus: projectSteps.find((step) => step.key === "narration")?.status,
+      });
       return data({
         success: true,
         alreadyCompleted: true,
@@ -170,9 +174,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     // 웹훅 호출 (마지막에, 실패해도 DB는 이미 업데이트됨)
     try {
+      console.log("👉 [brief-submit] step2 웹훅 호출 시작:", {
+        jobId: reservedJob.id,
+        jobStatus: reservedJob.status,
+      });
       await triggerShortWorkflowStepTwoWebhook(reservedJob as ShortWorkflowJobRecord);
+      console.log("✅ [brief-submit] step2 웹훅 호출 완료");
     } catch (error) {
-      console.error("n8n step2 웹훅 호출 실패:", error);
+      console.error("❌ [brief-submit] n8n step2 웹훅 호출 실패:", error);
+      // 웹훅 실패해도 DB는 이미 업데이트되었으므로 계속 진행
     }
 
     return data({ success: true, message: "기획서가 제출되었습니다." });

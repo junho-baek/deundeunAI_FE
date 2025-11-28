@@ -12,7 +12,17 @@ import { getShortWorkflowJobsByProject } from "../short-workflow";
 import type { ShortWorkflowJobRecord } from "../short-workflow";
 
 export async function action({ request, params }: ActionFunctionArgs) {
+  console.log("🔍 [youtube-upload-action] 요청 받음:", {
+    method: request.method,
+    url: request.url,
+    projectId: params.projectId,
+  });
+
   if (request.method !== "POST") {
+    console.error("❌ [youtube-upload-action] Method Not Allowed:", {
+      method: request.method,
+      expected: "POST",
+    });
     return data({ error: "Method not allowed" }, { status: 405 });
   }
 

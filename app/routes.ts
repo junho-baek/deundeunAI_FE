@@ -168,6 +168,11 @@ export default [
                 "videos/submit",
                 "features/projects/pages/project-videos-submit-action.tsx"
               ),
+              // YouTube Upload Action
+              route(
+                "youtube/upload",
+                "features/projects/pages/project-youtube-upload-action.tsx"
+              ),
               // Deploy Action
               route(
                 "deploy",

@@ -15,6 +15,8 @@ import { getProjects, getProjectPages } from "~/features/projects/queries";
 import ProjectPagination from "~/common/components/project-pagination";
 import { makeSSRClient } from "~/lib/supa-client";
 import { getUserById } from "~/features/users/queries";
+import { getShortWorkflowCompletionsByProject } from "~/features/projects/short-workflow";
+import type { ShortWorkflowCompletionRecord } from "~/features/projects/short-workflow";
 import { Button } from "~/common/components/ui/button";
 import {
   DropdownMenu,
@@ -114,8 +116,43 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }),
     ]);
 
+    // short_workflow_completions 데이터 조회 (프로젝트별로 매핑)
+    const completionsMap = new Map<number, ShortWorkflowCompletionRecord>();
+    if (ownerProfileId && projects && projects.length > 0) {
+      try {
+        // 프로젝트 ID 목록 추출 (serial ID)
+        const projectIds = projects
+          .map((p) => (p as any).id)
+          .filter((id): id is number => typeof id === "number");
+
+        if (projectIds.length > 0) {
+          // 한 번에 모든 completion 조회
+          const { data: completions, error: completionsError } = await client
+            .from("short_workflow_completions")
+            .select("*")
+            .in("project_id", projectIds)
+            .eq("owner_profile_id", ownerProfileId)
+            .order("created_at", { ascending: false });
+
+          if (!completionsError && completions) {
+            // 각 프로젝트별로 가장 최근 completion만 매핑
+            for (const completion of completions) {
+              const projectId = completion.project_id;
+              if (projectId && !completionsMap.has(projectId)) {
+                completionsMap.set(projectId, completion as ShortWorkflowCompletionRecord);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("short_workflow_completions 조회 실패:", error);
+        // 에러가 발생해도 프로젝트 목록은 계속 표시
+      }
+    }
+
     return {
       projects: projects ?? [],
+      completionsMap: Object.fromEntries(completionsMap),
       totalPages,
       currentPage: parsedData.page,
       filters: {
@@ -130,6 +167,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // 에러 발생 시 기본값 반환 (UI는 계속 렌더링)
     return {
       projects: [],
+      completionsMap: {},
       totalPages: 1,
       currentPage: 1,
       filters: {
@@ -174,7 +212,7 @@ function formatBudget(budget: number | null | undefined): string | undefined {
 }
 
 export default function ProjectListPage() {
-  const { projects, totalPages, currentPage, filters } =
+  const { projects, completionsMap, totalPages, currentPage, filters } =
     useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -272,16 +310,50 @@ export default function ProjectListPage() {
               project.status
             );
 
+            // short_workflow_completions에서 데이터 가져오기 (우선순위 높음)
+            const projectId = (project as any).id as number | undefined;
+            const completion = projectId
+              ? (completionsMap?.[projectId] as ShortWorkflowCompletionRecord | undefined)
+              : undefined;
+
+            // 타이틀: completion > project
+            const title =
+              completion?.title || project.title;
+
+            // 디스크립션: completion > project metadata > project description
             const rawMetadata =
               (project.metadata as Record<string, unknown> | null | undefined) ??
               undefined;
             const extractedDescription =
+              completion?.description ||
               project.description ||
               (typeof rawMetadata?.summary === "string"
                 ? rawMetadata.summary
                 : typeof rawMetadata?.description === "string"
                   ? rawMetadata.description
                   : undefined);
+
+            // 썸네일/비디오: completion render_url > project video_url > project thumbnail
+            const thumbnail =
+              completion?.render_url ||
+              project.video_url ||
+              project.thumbnail ||
+              project.cover_image ||
+              undefined;
+
+            // 비디오 URL: completion render_url > project video_url
+            const videoUrl =
+              completion?.render_url ||
+              project.video_url ||
+              undefined;
+
+            // 유튜브 URL: completion youtube_url > project video_url (유튜브 링크인 경우)
+            const youtubeUrl =
+              completion?.youtube_url ||
+              (project.video_url?.includes("youtube.com") ||
+              project.video_url?.includes("youtu.be")
+                ? project.video_url
+                : undefined);
 
             const likesValue =
               typeof project.likes === "number"
@@ -309,18 +381,13 @@ export default function ProjectListPage() {
                 key={project.project_id}
                 id={project.project_id}
                 to={projectRoute}
-                title={project.title}
+                title={title}
                 description={extractedDescription}
                 likes={formatNumber(likesValue)}
                 ctr={formatCTR(ctrSource ?? undefined)}
                 budget={formatBudget(budgetSource ?? undefined)}
-                thumbnail={
-                  project.thumbnail ||
-                  project.cover_image ||
-                  project.video_url ||
-                  undefined
-                }
-                videoUrl={project.video_url || undefined}
+                thumbnail={thumbnail}
+                videoUrl={videoUrl}
                 tiktokUrl={project.tiktok_url || undefined}
                 status={project.status || undefined}
               />

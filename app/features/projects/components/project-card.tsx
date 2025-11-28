@@ -56,7 +56,7 @@ function getStatusBadge(status: string) {
 function getYouTubeEmbedSrc(url: string): string | null {
   try {
     const u = new URL(url);
-    const qs = "rel=0&controls=0&modestbranding=1&playsinline=1&mute=1";
+    const qs = "rel=0&controls=0&modestbranding=1&playsinline=1&mute=1&autoplay=1";
 
     if (u.hostname.includes("youtube.com")) {
       if (u.pathname.startsWith("/shorts/")) {
@@ -102,6 +102,22 @@ function getEmbedSrcFromAny(url: string): string | null {
   return getTikTokEmbedSrc(url) ?? getYouTubeEmbedSrc(url);
 }
 
+function isDirectVideoFile(url: string): boolean {
+  try {
+    const lowerUrl = url.toLowerCase();
+    return (
+      lowerUrl.endsWith(".mp4") ||
+      lowerUrl.endsWith(".webm") ||
+      lowerUrl.endsWith(".ogg") ||
+      lowerUrl.endsWith(".mov") ||
+      lowerUrl.includes("/video/") ||
+      lowerUrl.includes("video/mp4")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default function ProjectCard(props: ProjectCardProps) {
   const { id, to, title, description, likes, ctr, budget, tiktokUrl, videoUrl, thumbnail, className, isCreate, ctaText, status } = props;
 
@@ -132,18 +148,53 @@ export default function ProjectCard(props: ProjectCardProps) {
                 allowFullScreen
               />
             ) : !isCreate && videoUrl ? (
-              <iframe
-                className="h-full w-full"
-                src={getYouTubeEmbedSrc(videoUrl) ?? videoUrl}
-                title={title}
-                loading="lazy"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                frameBorder={0}
-                allowFullScreen
-              />
+              isDirectVideoFile(videoUrl) ? (
+                <video
+                  className="h-full w-full object-cover"
+                  muted
+                  loop
+                  playsInline
+                  autoPlay
+                  preload="metadata"
+                >
+                  <source src={videoUrl} type="video/mp4" />
+                </video>
+              ) : getYouTubeEmbedSrc(videoUrl) ? (
+                <iframe
+                  className="h-full w-full"
+                  src={getYouTubeEmbedSrc(videoUrl) as string}
+                  title={title}
+                  loading="lazy"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  frameBorder={0}
+                  allowFullScreen
+                />
+              ) : (
+                <iframe
+                  className="h-full w-full"
+                  src={videoUrl}
+                  title={title}
+                  loading="lazy"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  frameBorder={0}
+                  allowFullScreen
+                />
+              )
             ) : !isCreate && thumbnail ? (
-              getEmbedSrcFromAny(thumbnail) ? (
+              isDirectVideoFile(thumbnail) ? (
+                <video
+                  className="h-full w-full object-cover"
+                  muted
+                  loop
+                  playsInline
+                  autoPlay
+                  preload="metadata"
+                >
+                  <source src={thumbnail} type="video/mp4" />
+                </video>
+              ) : getEmbedSrcFromAny(thumbnail) ? (
                 <iframe
                   className="h-full w-full"
                   src={getEmbedSrcFromAny(thumbnail) as string}

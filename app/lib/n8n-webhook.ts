@@ -186,11 +186,17 @@ export async function triggerShortWorkflowStepTwoWebhook(
   );
 
   if (!webhookUrl) {
-    console.warn(
-      "n8n step2 웹훅 URL이 설정되지 않았습니다. 환경 변수 N8N_STEP2_WEBHOOK_URL 또는 VITE_N8N_STEP2_WEBHOOK_URL을 설정해주세요."
+    console.error(
+      "❌ n8n step2 웹훅 URL이 설정되지 않았습니다. 환경 변수 N8N_STEP2_WEBHOOK_URL 또는 VITE_N8N_STEP2_WEBHOOK_URL을 설정해주세요."
     );
-    return;
+    throw new Error("step2 웹훅 URL이 설정되지 않았습니다.");
   }
+
+  console.log("🔗 [Step2] 웹훅 호출 시작:", {
+    url: webhookUrl,
+    jobId: job.id,
+    jobStatus: job.status,
+  });
 
   await postJsonWebhook(
     webhookUrl,

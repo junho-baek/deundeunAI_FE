@@ -25,6 +25,7 @@ export type ProjectFinalVideoProps = {
   onSelect?: () => void;
   onDone?: () => void;
   onYouTubeClick?: () => void;
+  youtubeUploadPending?: boolean;
 };
 
 export function ProjectFinalVideo({ 
@@ -39,7 +40,8 @@ export function ProjectFinalVideo({
   done, 
   onSelect, 
   onDone,
-  onYouTubeClick 
+  onYouTubeClick,
+  youtubeUploadPending = false,
 }: ProjectFinalVideoProps) {
   const showActions = Boolean(onSelect || onDone);
   const hasVideo = Boolean(videoSrc);
@@ -127,8 +129,14 @@ export function ProjectFinalVideo({
                   ) : (
                     <button
                       type="button"
-                      onClick={onYouTubeClick}
-                      disabled={!onYouTubeClick}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onYouTubeClick) {
+                          onYouTubeClick();
+                        }
+                      }}
+                      disabled={youtubeUploadPending || !onYouTubeClick}
                       aria-label="Upload to YouTube"
                       className="inline-flex items-center justify-center rounded-full bg-red-600 text-white h-10 w-10 shadow hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -156,9 +164,16 @@ export function ProjectFinalVideo({
                 {onDone ? (
                   <Button
                     variant="default"
+                    type="button"
                     className="rounded-full bg-green-500 px-5 py-2 text-sm md:text-base"
                     size="sm"
-                    onClick={onDone}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (onDone) {
+                        onDone();
+                      }
+                    }}
                   >
                     <Check className="h-4 w-4" />
                     완료
